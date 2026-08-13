@@ -1,8 +1,8 @@
 {
   "name": "react-boilerplate",
-  "module": "index.ts",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "module": "index.ts",
   "scripts": {
     "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && git config core.hooksPath .githooks || true",
     "dev": "vite",
@@ -18,8 +18,8 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "typescript": "^7.0.2",
+    "oxfmt": "^0.63.0",
     "oxlint": "^1.78.0",
-    "oxfmt": "^0.63.0"
+    "typescript": "^7.0.2"
   }
 }
