@@ -6,7 +6,7 @@
   "scripts": {
     "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && git config core.hooksPath .githooks || true",
     "dev": "vite",
-    "build": "vite build && tsc --noEmit",
+    "build": "tsc && vite build",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
