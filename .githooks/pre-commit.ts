@@ -47,7 +47,9 @@ async function fixStaged(files: string[]): Promise<void> {
   if ((await run(['bunx', 'oxfmt', '--no-error-on-unmatched-pattern', ...files])) !== 0) {
     fail('formatting failed');
   }
-  if ((await run(['bunx', 'oxlint', '--fix', ...files])) !== 0) {
+  // `--no-error-on-unmatched-pattern`: every staged file may be covered by
+  // ignorePatterns (e.g. src/routeTree.gen.ts), which is not a lint failure.
+  if ((await run(['bunx', 'oxlint', '--fix', '--no-error-on-unmatched-pattern', ...files])) !== 0) {
     fail('lint errors remain after --fix');
   }
   // Format again: oxlint's fixer rewrites source without reformatting it, so
