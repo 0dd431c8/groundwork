@@ -3,8 +3,21 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "typecheck": "tsc --noEmit",
+    "e2e": "playwright test"
+  },
   "devDependencies": {
     "@types/bun": "latest",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "oxlint": "^1.78.0",
+    "oxfmt": "^0.63.0"
   }
 }

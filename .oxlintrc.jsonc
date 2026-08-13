@@ -1,0 +1,51 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "import", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error",
+  },
+  "env": {
+    "browser": true,
+    "es2024": true,
+  },
+  "ignorePatterns": ["dist", "src/routeTree.gen.ts"],
+  "rules": {
+    "max-lines": ["error", { "max": 400, "skipBlankLines": true, "skipComments": true }],
+    "max-lines-per-function": [
+      "error",
+      { "max": 40, "skipBlankLines": true, "skipComments": true, "IIFEs": true },
+    ],
+    "complexity": ["error", 15],
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "react",
+            "importNames": ["useEffect"],
+            "message": "useEffect is banned. Derive state, use event handlers, or - if truly unavoidable - add `// oxlint-disable-next-line no-restricted-imports` on the import with a justification comment.",
+          },
+        ],
+      },
+    ],
+    "typescript/no-unused-vars": [
+      "error",
+      { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "ignoreRestSiblings": true },
+    ],
+  },
+  "overrides": [
+    {
+      "files": ["src/**/*.test.{ts,tsx}", "src/test/**/*"],
+      "rules": {
+        "max-lines-per-function": "off",
+        "max-lines": "off",
+      },
+    },
+    {
+      "files": ["src/components/ui/**"],
+      "rules": {
+        "no-restricted-imports": "off",
+      },
+    },
+  ],
+}
