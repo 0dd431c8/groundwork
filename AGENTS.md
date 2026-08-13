@@ -14,6 +14,13 @@ Default to using Bun instead of Node.js.
 - Use `bunx <package> <command>` instead of `npx <package> <command>`
 - Bun automatically loads .env, so don't use dotenv.
 
+## Git hooks
+
+`bun install` points `core.hooksPath` at `.githooks/`. The pre-commit hook formats
+(`oxfmt`) and lint-fixes (`oxlint --fix`) staged JS/TS files, re-stages the fixes, then
+runs `tsc --noEmit`. It aborts on unfixable lint errors, type errors, or a partially
+staged file. Bypass with `git commit --no-verify`.
+
 ## APIs
 
 - `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.

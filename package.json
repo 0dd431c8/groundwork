@@ -4,9 +4,11 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && git config core.hooksPath .githooks || true",
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "test": "vitest",

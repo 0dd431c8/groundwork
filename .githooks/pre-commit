@@ -1,0 +1,6 @@
+#!/bin/sh
+command -v bun >/dev/null 2>&1 || {
+  echo "pre-commit: bun not found in PATH. Install bun, or bypass with 'git commit --no-verify'." >&2
+  exit 1
+}
+exec bun .githooks/pre-commit.ts
