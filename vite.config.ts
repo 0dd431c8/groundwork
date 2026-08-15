@@ -32,19 +32,15 @@ export default defineConfig({
   build: {
     sourcemap: 'hidden',
     cssMinify: 'lightningcss',
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          if (
-            id.includes('node_modules/react/') ||
-            id.includes('node_modules/react-dom/') ||
-            id.includes('node_modules/scheduler/')
-          ) {
-            return 'vendor-react';
-          }
-          if (id.includes('node_modules/@tanstack/')) {
-            return 'vendor-tanstack';
-          }
+        // `[\\/]` rather than `/`: module ids use the platform separator, so a
+        // POSIX-only pattern would silently match nothing on Windows.
+        codeSplitting: {
+          groups: [
+            { name: 'vendor-react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'vendor-tanstack', test: /node_modules[\\/]@tanstack[\\/]/ },
+          ],
         },
       },
     },
