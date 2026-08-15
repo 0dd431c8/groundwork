@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
-// import tailwindcss from "@tailwindcss/vite";
+import tailwindcss from '@tailwindcss/vite';
 // import { compression } from "vite-plugin-compression2";
 // import { visualizer } from "rollup-plugin-visualizer";
 import { resolve } from 'node:path';
@@ -15,7 +15,7 @@ export default defineConfig({
       routeFileIgnorePattern: '\\.test\\.tsx?$',
     }),
     react(),
-    // tailwindcss(),
+    tailwindcss(),
     // compression({ algorithm: "brotliCompress" }),
     // process.env.ANALYZE === "true" &&
     //   visualizer({
@@ -40,6 +40,10 @@ export default defineConfig({
           groups: [
             { name: 'vendor-react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
             { name: 'vendor-tanstack', test: /node_modules[\\/]@tanstack[\\/]/ },
+            // Catch-all, last: groups match in order, so the two above still win. Without
+            // it every newly added package lands in the route chunk and rehashes on each
+            // app edit.
+            { name: 'vendor', test: /node_modules[\\/]/ },
           ],
         },
       },

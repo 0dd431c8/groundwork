@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/')({
@@ -5,5 +6,9 @@ export const Route = createFileRoute('/')({
 });
 
 function Home() {
-  return <h1>React Boilerplate</h1>;
+  return (
+    <div className="min-h-dvh flex items-center justify-center">
+      <Button onClick={() => alert('Hello!')}>Hello, World!</Button>
+    </div>
+  );
 }

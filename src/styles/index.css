@@ -1,26 +1,190 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/noto-sans';
+@import '@fontsource-variable/playfair-display';
+
+/* The two font imports above pull all 8 writing-system subsets (~440 KB of woff2 into
+   dist/assets). Browsers fetch them on demand per unicode-range, so most visitors never
+   download more than latin; the cost is dist size and CDN upload, not page weight.
+   To ship latin only: delete the two imports above and uncomment the blocks below. */
+/*
+@font-face {
+  font-family: 'Noto Sans Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/noto-sans/files/noto-sans-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@font-face {
+  font-family: 'Noto Sans Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/noto-sans/files/noto-sans-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Playfair Display Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 900;
+  src: url('@fontsource-variable/playfair-display/files/playfair-display-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@font-face {
+  font-family: 'Playfair Display Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 900;
+  src: url('@fontsource-variable/playfair-display/files/playfair-display-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+*/
+
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  color-scheme: light dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-  line-height: 1.5;
+  /* Drives native UI (scrollbars, form controls, autofill, over-scroll) off the same
+     class that drives the palette below, rather than off the OS preference. */
+  color-scheme: light;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.147 0.004 49.3);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.147 0.004 49.3);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.147 0.004 49.3);
+  --primary: oklch(0.214 0.009 43.1);
+  --primary-foreground: oklch(0.986 0.002 67.8);
+  --secondary: oklch(0.96 0.002 17.2);
+  --secondary-foreground: oklch(0.214 0.009 43.1);
+  --muted: oklch(0.96 0.002 17.2);
+  --muted-foreground: oklch(0.547 0.021 43.1);
+  --accent: oklch(0.96 0.002 17.2);
+  --accent-foreground: oklch(0.214 0.009 43.1);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.986 0.002 67.8);
+  --border: oklch(0.922 0.005 34.3);
+  --input: oklch(0.922 0.005 34.3);
+  --ring: oklch(0.714 0.014 41.2);
+  /* Ramp runs light -> dark against the white background. The .dark block inverts it;
+     keeping both identical would sink one end into the background. */
+  --chart-1: oklch(0.714 0.014 41.2);
+  --chart-2: oklch(0.617 0.019 42.5);
+  --chart-3: oklch(0.52 0.02 40.5);
+  --chart-4: oklch(0.42 0.017 37.5);
+  --chart-5: oklch(0.32 0.013 36.5);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.986 0.002 67.8);
+  --sidebar-foreground: oklch(0.147 0.004 49.3);
+  --sidebar-primary: oklch(0.214 0.009 43.1);
+  --sidebar-primary-foreground: oklch(0.986 0.002 67.8);
+  --sidebar-accent: oklch(0.96 0.002 17.2);
+  --sidebar-accent-foreground: oklch(0.214 0.009 43.1);
+  --sidebar-border: oklch(0.922 0.005 34.3);
+  --sidebar-ring: oklch(0.714 0.014 41.2);
 }
 
-* {
-  box-sizing: border-box;
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.147 0.004 49.3);
+  --foreground: oklch(0.986 0.002 67.8);
+  --card: oklch(0.214 0.009 43.1);
+  --card-foreground: oklch(0.986 0.002 67.8);
+  --popover: oklch(0.214 0.009 43.1);
+  --popover-foreground: oklch(0.986 0.002 67.8);
+  --primary: oklch(0.922 0.005 34.3);
+  --primary-foreground: oklch(0.214 0.009 43.1);
+  --secondary: oklch(0.268 0.011 36.5);
+  --secondary-foreground: oklch(0.986 0.002 67.8);
+  --muted: oklch(0.268 0.011 36.5);
+  --muted-foreground: oklch(0.714 0.014 41.2);
+  --accent: oklch(0.268 0.011 36.5);
+  --accent-foreground: oklch(0.986 0.002 67.8);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.986 0.002 67.8);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.547 0.021 43.1);
+  --chart-1: oklch(0.922 0.005 34.3);
+  --chart-2: oklch(0.828 0.01 37);
+  --chart-3: oklch(0.734 0.014 40);
+  --chart-4: oklch(0.64 0.018 42);
+  --chart-5: oklch(0.546 0.021 43.1);
+  --sidebar: oklch(0.214 0.009 43.1);
+  --sidebar-foreground: oklch(0.986 0.002 67.8);
+  --sidebar-primary: oklch(0.922 0.005 34.3);
+  --sidebar-primary-foreground: oklch(0.214 0.009 43.1);
+  --sidebar-accent: oklch(0.268 0.011 36.5);
+  --sidebar-accent-foreground: oklch(0.986 0.002 67.8);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.547 0.021 43.1);
 }
 
-body {
-  margin: 0;
-  min-height: 100dvh;
-  background: #fff;
-  color: #111213;
+@theme inline {
+  --font-sans: 'Noto Sans Variable', sans-serif;
+  --font-heading: 'Playfair Display Variable', serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-html.dark body {
-  background: #111213;
-  color: #f5f5f5;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading;
+  }
 }

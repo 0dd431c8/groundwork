@@ -14,7 +14,9 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
-    "paths": { "@/*": ["./src/*"] },
+    "paths": {
+      "@/*": ["./src/*"]
+    },
 
     // Best practices
     "strict": true,
@@ -28,6 +30,6 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "include": ["src", "vite.config.ts", "index.ts"],
+  "include": ["src", "vite.config.ts"],
   "exclude": ["node_modules", "dist"]
 }
