@@ -1,5 +1,7 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "singleQuote": true,
-  "ignorePatterns": ["dist", "src/routeTree.gen.ts"],
+  // src/components/ui is shadcn CLI output, rewritten verbatim by `bunx shadcn add`.
+  // Linting still applies (see .oxlintrc.jsonc); only formatting is skipped.
+  "ignorePatterns": ["dist", "src/routeTree.gen.ts", "src/components/ui"],
 }

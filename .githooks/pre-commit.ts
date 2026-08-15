@@ -1,12 +1,13 @@
 /**
- * Pre-commit hook: formats and lint-fixes staged JS/TS files, re-stages the
+ * Pre-commit hook: formats and lint-fixes staged JS/TS/CSS files, re-stages the
  * fixes, then typechecks the project. Installed via `core.hooksPath`, which the
  * `prepare` script in package.json points at `.githooks/`.
  *
  * Bypass with `git commit --no-verify`.
  */
 
-const SOURCE_FILE = /\.[cm]?[jt]sx?$/;
+// CSS is included because oxfmt formats it too; oxlint ignores it and exits 0.
+const SOURCE_FILE = /\.([cm]?[jt]sx?|css)$/;
 
 function fail(message: string): never {
   console.error(`pre-commit: ${message}`);
