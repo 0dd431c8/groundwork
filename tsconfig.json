@@ -26,6 +26,23 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
 
+    // Beyond `strict`. Every one of these was measured at zero errors against this
+    // codebase before being turned on, so they cost nothing today and only constrain
+    // what gets written next.
+    // `exactOptionalPropertyTypes` stops `{ a?: string }` accepting an explicit
+    // `undefined`, which is the difference between "absent" and "present but empty".
+    // `noPropertyAccessFromIndexSignature` forces `obj['key']` for index signatures, so
+    // a typo in a dotted access is an error rather than `undefined` at runtime.
+    // `erasableSyntaxOnly` bans enums and parameter properties: syntax that needs a real
+    // transform, which a bundler doing type-stripping cannot do.
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedSideEffectImports": true,
+    "erasableSyntaxOnly": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+
     // Unused-variable policy belongs to oxlint (typescript/no-unused-vars), which
     // honours a `^_` prefix as an escape hatch. tsc does not honour it for locals,
     // so turning these on would reject code the linter accepts.

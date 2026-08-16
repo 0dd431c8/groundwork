@@ -173,7 +173,30 @@ Bypass with `git commit --no-verify`.
 
 ## Lint rules worth knowing
 
-`.oxlintrc.jsonc` sets `correctness` to error and adds:
+Run `bun run check` before claiming anything is done. It is `format:check`, `lint`,
+`typecheck` and the tests in one command, and it is what CI runs. `bun run lint` on its own
+passes while types or tests are broken.
+
+`.oxlintrc.jsonc` errors on the `correctness`, `suspicious`, `pedantic` and `perf` categories,
+and adds the following. Every rule below was checked against a file written to violate it
+before being turned on; do the same when adding one, since a rule that fires on nothing is not
+a guardrail.
+
+**Type-aware.** `"typeAware": true` runs `oxlint-tsgolint` against the real TypeScript
+program, which is the only tier that sees across a call boundary. It needs TypeScript 7, so
+do not downgrade TypeScript without removing this first. It costs about 0.1s here. The rules
+are `no-floating-promises`, `no-misused-promises` (an `async` function passed to `onClick`),
+`await-thenable`, `require-await`, `no-unnecessary-condition`, `switch-exhaustiveness-check`,
+`no-unnecessary-type-assertion`, `no-array-delete`, `prefer-promise-reject-errors`, and the
+`no-unsafe-*` set that stops `any` spreading out of an untyped edge.
+
+**Escape hatches.** `no-explicit-any`, `no-non-null-assertion` (`!`), `no-console`, and
+`ban-ts-comment`: `@ts-ignore` is banned outright, `@ts-expect-error` needs a description and
+starts failing once the underlying problem is fixed.
+
+**Contracts.** `explicit-module-boundary-types` means exported functions declare their return
+type, components included (`import type { JSX } from 'react'`, then `: JSX.Element`). An
+inferred type that is subtly wrong becomes an error at the boundary rather than downstream.
 
 - `useEffect` is banned from `react` imports. Derive state or use event handlers. If genuinely
   unavoidable, add `// oxlint-disable-next-line no-restricted-imports` with a justification.
@@ -195,6 +218,23 @@ Bypass with `git commit --no-verify`.
   needs `@/features/*/*`. Both are easy to get wrong silently, so verify a rule change by
   writing a file that should fail and confirming it does.
 
+Relaxed on purpose, so nobody re-enables them expecting an improvement:
+`react/react-in-jsx-scope` is wrong under the automatic JSX runtime and is 44 of the 47
+findings `suspicious` reports; `import/no-unassigned-import` would flag the CSS and jest-dom
+side-effect imports, which are correct; `prefer-readonly-parameter-types` wants `readonly` on
+every object parameter including React props, 13 findings and no bugs;
+`no-confusing-void-expression` keeps `ignoreArrowShorthand` so `onClick={() => step(-1)}`
+stays legal. Not enabled at all: the `style` category (oxfmt's job), `restriction` as a
+category (it bans `async`/`await`), and the `react-perf` plugin (its remedy is `useCallback`
+around children that are not memoised).
+
+`tsconfig.json` runs `strict` plus `exactOptionalPropertyTypes`, `noImplicitReturns`,
+`noPropertyAccessFromIndexSignature`, `noUncheckedSideEffectImports`, `erasableSyntaxOnly`,
+`noUncheckedIndexedAccess`, and `allowUnreachableCode`/`allowUnusedLabels` off. All were
+measured at zero errors before being turned on. `isolatedDeclarations` is skipped: it needs
+declaration emit, which fights `noEmit` on the app project, and
+`explicit-module-boundary-types` covers the same ground.
+
 ## Testing
 
 Vitest with jsdom and Testing Library. Prefer it over `bun test`: the app code imports
@@ -202,7 +242,14 @@ Vitest with jsdom and Testing Library. Prefer it over `bun test`: the app code i
 with the dev server.
 
 - `bun run test` (watch), `bun run test:ui` (`@vitest/ui` dashboard), `bun run test:coverage`
-  (v8 provider, report in `coverage/`). CI should call `bunx vitest run`.
+  (v8 provider, report in `coverage/`). CI should call `bun run check`.
+- Coverage thresholds are set to 90 across the board. The suite is at 100% once wiring is
+  excluded from `coverage.include` (the mount call, the three `src/lib` singletons, the route
+  files, feature `index.ts` barrels: all exercised only by a real browser). Treat this as a
+  floor against a feature landing with no tests at all, not as a quality bar, since an
+  assertion-free test satisfies it just as well. Raise it, never quietly lower it, and if
+  something genuinely untestable drags it down, exclude that file with a reason rather than
+  dropping the number.
 - Tests are colocated: `src/**/*.test.{ts,tsx}`, next to the file under test inside the
   feature. `src/features/counter/` is the worked example of both layers: atom logic is driven
   through a bare `createStore()` with no React, component behaviour through Testing Library.

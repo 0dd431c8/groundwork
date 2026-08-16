@@ -27,9 +27,27 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
-      // routeTree.gen.ts is generated, src/components/ui is vendored shadcn output,
-      // and main.tsx is the mount call that only a browser can exercise.
-      exclude: ['src/routeTree.gen.ts', 'src/components/ui/**', 'src/main.tsx', 'src/test/**'],
+      // routeTree.gen.ts is generated and src/components/ui is vendored shadcn output.
+      // The rest is wiring rather than logic: a mount call, three module-level
+      // singletons and the route files that place components. All of it is exercised
+      // only by a real browser, and a test asserting `store` is truthy would raise the
+      // coverage number without raising confidence in anything.
+      exclude: [
+        'src/routeTree.gen.ts',
+        'src/components/ui/**',
+        'src/main.tsx',
+        'src/test/**',
+        'src/routes/**',
+        'src/lib/router.ts',
+        'src/lib/query-client.ts',
+        'src/lib/store.ts',
+        'src/features/*/index.ts',
+      ],
+      // A floor against code landing with no tests at all, not a quality bar: nothing
+      // here stops an assertion-free test from satisfying it. The suite is at 100% once
+      // the wiring above is excluded, so 90 leaves headroom while still failing on a
+      // feature that arrives untested. Raise it, never quietly lower it.
+      thresholds: { statements: 90, branches: 90, functions: 90, lines: 90 },
     },
   },
 });
