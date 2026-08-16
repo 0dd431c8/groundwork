@@ -70,4 +70,6 @@ if (staged.length > 0) {
   await fixStaged(staged);
 }
 
-if ((await run(['bunx', 'tsc', '--noEmit'])) !== 0) fail('typecheck failed');
+// `-b`, not `--noEmit`: the app and the tooling (vite.config.ts, this file) are
+// separate tsconfig projects, and only build mode checks both.
+if ((await run(['bunx', 'tsc', '-b'])) !== 0) fail('typecheck failed');

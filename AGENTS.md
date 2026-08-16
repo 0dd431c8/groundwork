@@ -28,7 +28,13 @@ runner; it is not the server or the bundler.
 
 ## Build and tooling
 
-- `bun run dev` starts Vite. `bun run build` runs `tsc` then `vite build`.
+- `bun run dev` starts Vite. `bun run build` runs `tsc -b` then `vite build`.
+- Two TypeScript projects: `tsconfig.json` covers `src`, and `tsconfig.node.json` (which
+  extends it) covers `*.config.ts` and `.githooks/`. Build mode is what checks both, so use
+  `tsc -b`; plain `tsc` silently skips the referenced project. `tsconfig.node.json` must
+  emit (TS7 forbids `noEmit` on a referenced project), so it emits declarations only, into
+  `node_modules/.tmp/`. Tooling files can't import from `src`: a composite project has to
+  list every input file, so `@/...` there fails with TS6307.
 - Tailwind v4 is configured through `@tailwindcss/vite`, not a `tailwind.config.js`. Theme
   tokens live in `@theme inline` in `src/styles/index.css`.
 - Vendor chunking is set in `vite.config.ts` under `build.rolldownOptions.output.codeSplitting`.
@@ -51,7 +57,7 @@ runner; it is not the server or the bundler.
 
 `bun install` points `core.hooksPath` at `.githooks/`. The pre-commit hook formats (`oxfmt`)
 and lint-fixes (`oxlint --fix`) staged JS/TS/CSS files, re-stages the fixes, then runs
-`tsc --noEmit`. It aborts on unfixable lint errors, type errors, or a partially staged file.
+`tsc -b`. It aborts on unfixable lint errors, type errors, or a partially staged file.
 Bypass with `git commit --no-verify`.
 
 ## Lint rules worth knowing
