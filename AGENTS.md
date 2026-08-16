@@ -22,8 +22,13 @@ runner; it is not the server or the bundler.
 - `src/main.tsx` mounts React and wires the router and the React Query client.
 - `src/routes/` holds TanStack Router file-based routes. `src/routeTree.gen.ts` is generated
   by `@tanstack/router-plugin` and committed; never edit it by hand.
-- `src/lib/` holds hand-written app modules (`router.ts`, `query-client.ts`, `store.ts`,
-  `utils.ts`).
+- `src/features/<name>/` holds everything that belongs to one feature: state, components and
+  their tests, side by side. `src/features/counter/` is the worked example.
+- `src/lib/` is infrastructure and app-agnostic helpers only: the singletons `main.tsx` wires
+  up (`router.ts`, `query-client.ts`, `store.ts`) and generic utilities (`utils.ts`). Feature
+  code does not go here. If a module names a feature, it belongs in `src/features/`.
+- `src/components/` is for components shared across features. Right now that is only the
+  vendored `ui/` directory.
 - `src/styles/index.css` is the single stylesheet: Tailwind v4 import, theme tokens for
   `:root` and `.dark`, and `@layer base` rules.
 
@@ -35,10 +40,12 @@ Context to share values, and don't lift state up through props just to share it.
 - `src/lib/store.ts` exports an explicit `createStore()` rather than relying on Jotai's
   implicit default store, and `src/main.tsx` wraps the router in `<Provider store={store}>`.
   The explicit store is what lets tests render against a fresh one.
-- Atoms live in `src/lib/`, in the same module as the pure helpers they use, and are named
-  with an `Atom` suffix. `src/lib/counter.ts` is the worked example of all three shapes:
-  a primitive atom (`countAtom`), read-only derived atoms (`canDecrementAtom`,
+- Atoms live in the feature that owns them, in a `<feature>.state.ts` module alongside the
+  constants and pure helpers they enforce, and are named with an `Atom` suffix.
+  `src/features/counter/counter.state.ts` is the worked example of all three shapes: a
+  primitive atom (`countAtom`), read-only derived atoms (`canDecrementAtom`,
   `canIncrementAtom`), and a write-only action atom (`stepAtom`) that owns the update rule.
+  Only state genuinely shared across features belongs anywhere else.
 - Derived atoms are the answer to the `useEffect` ban below. A value computed from other
   state is an `atom((get) => ...)`, never state you keep in sync by hand.
 - Read with `useAtomValue`, write with `useSetAtom`. `useAtom` only when a component genuinely
@@ -118,10 +125,13 @@ with the dev server.
 
 - `bun run test` (watch), `bun run test:ui` (`@vitest/ui` dashboard), `bun run test:coverage`
   (v8 provider, report in `coverage/`). CI should call `bunx vitest run`.
-- Tests are colocated: `src/**/*.test.{ts,tsx}`. `src/lib/counter.ts` +
-  `src/components/counter.tsx` and their tests are the worked example of both layers: atom
-  logic is driven through a bare `createStore()` with no React, component behaviour through
-  Testing Library.
+- Tests are colocated: `src/**/*.test.{ts,tsx}`, next to the file under test inside the
+  feature. `src/features/counter/` is the worked example of both layers: atom logic is driven
+  through a bare `createStore()` with no React, component behaviour through Testing Library.
+- Within a feature, import relatively (`./counter.state`); reach for the `@/*` alias only when
+  crossing out of it. That way a feature folder can be renamed or moved without editing its
+  own internals. The state module is `<feature>.state.ts` rather than `<feature>.ts` so that
+  `./counter` never has to be disambiguated from `counter.tsx` by extension-resolution order.
 - `src/test/render.tsx` exports `renderWithStore`, which wraps the tree in a `Provider` over a
   store created per call. To start from a specific state, build the store yourself, seed it
   with `store.set(...)`, and pass it in - that is the same write path production code uses, so

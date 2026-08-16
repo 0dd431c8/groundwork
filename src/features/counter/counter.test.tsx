@@ -2,9 +2,9 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createStore } from 'jotai';
 import { describe, expect, it } from 'vitest';
-import { Counter } from '@/components/counter';
-import { countAtom, MAX_COUNT, MIN_COUNT } from '@/lib/counter';
 import { renderWithStore } from '@/test/render';
+import { Counter } from './counter';
+import { countAtom, MAX_COUNT, MIN_COUNT } from './counter.state';
 
 describe('<Counter />', () => {
   it('starts at the minimum with decrement disabled', () => {

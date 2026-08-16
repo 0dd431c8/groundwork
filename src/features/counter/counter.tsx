@@ -1,6 +1,6 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import { Button } from '@/components/ui/button';
-import { canDecrementAtom, canIncrementAtom, countAtom, stepAtom } from '@/lib/counter';
+import { canDecrementAtom, canIncrementAtom, countAtom, stepAtom } from './counter.state';
 
 export function Counter() {
   const count = useAtomValue(countAtom);

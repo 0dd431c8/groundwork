@@ -1,4 +1,4 @@
-import { Counter } from '@/components/counter';
+import { Counter } from '@/features/counter/counter';
 import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/')({

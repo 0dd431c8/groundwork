@@ -8,7 +8,7 @@ import {
   MAX_COUNT,
   MIN_COUNT,
   stepAtom,
-} from '@/lib/counter';
+} from './counter.state';
 
 describe('clamp', () => {
   it('passes through a value inside the range', () => {
