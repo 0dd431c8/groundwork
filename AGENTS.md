@@ -25,7 +25,8 @@ runner; it is not the server or the bundler.
 - `src/features/<name>/` holds everything that belongs to one feature: state, components and
   their tests, side by side. `src/features/counter/` is the worked example. Files are named
   `<feature>.state.ts` (atoms), `<feature>.api.ts` (transport), `<feature>.queries.ts` (React
-  Query definitions), and one `.tsx` per component with its `.test.tsx` beside it.
+  Query definitions), and one `.tsx` per component with its `.test.tsx` beside it. See
+  "Feature structure" below before adding folders inside one.
 - `src/lib/` is infrastructure and app-agnostic helpers only: the singletons `main.tsx` wires
   up (`router.ts`, `query-client.ts`, `store.ts`) and generic utilities (`utils.ts`). Feature
   code does not go here. If a module names a feature, it belongs in `src/features/`.
@@ -33,6 +34,30 @@ runner; it is not the server or the bundler.
   vendored `ui/` directory.
 - `src/styles/index.css` is the single stylesheet: Tailwind v4 import, theme tokens for
   `:root` and `.dark`, and `@layer base` rules.
+
+## Feature structure
+
+A feature folder is flat. Stay that way until it hurts, which in practice is somewhere past
+15-20 source files, and is about scrolling to find things rather than anything structural.
+`src/features/counter/` is six source modules, nowhere near it.
+
+- Each feature exports one entry component, named `<feature>-panel.tsx`, and that is the only
+  file a route imports. `CounterPanel` composes `Counter`, `SaveScoreButton` and `ScoreList`;
+  `src/routes/index.tsx` places it and knows nothing else about the feature. Without this the
+  route ends up owning how a feature's pieces stack, and renaming an internal component breaks
+  routing for no reason connected to routing.
+- When a feature really does outgrow flat, split it by sub-domain, never by technical type.
+  `checkout/{cart,payment,confirmation}/` follows how the code changes; adding
+  `components/`, `hooks/` and `state/` folders just recreates, one level down, the by-type
+  organisation that moving the counter out of `src/lib` and `src/components` got rid of.
+- No barrel `index.ts` at the feature root. It reads nicer, but a barrel means importing one
+  component can drag the whole feature into a route chunk, and this repo code-splits per route
+  (see `codeSplitting` in `vite.config.ts`). Longer explicit import paths are the price.
+- Dependencies point one way: `.state.ts` <- `.queries.ts` <- components. Nothing imports back
+  up the chain, and no feature imports another feature's internals. This matters more than the
+  folder shape and is currently a convention rather than something enforced; a lint rule
+  (`import/no-restricted-paths` or dependency-cruiser) is the way to make it real if it starts
+  slipping.
 
 ## State
 
