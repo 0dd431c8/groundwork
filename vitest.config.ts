@@ -17,6 +17,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // Node 25 defines a global `localStorage` that throws away every method unless
+    // you pass --localstorage-file. Vitest's jsdom environment only copies a window
+    // key onto the global when the global does not already have it, so Node's stub
+    // wins and `localStorage.getItem` is undefined. Turning Node's Web Storage off
+    // leaves jsdom's implementation as the only one. See vitest-dev/vitest#8757.
+    execArgv: ['--no-webstorage'],
     include: ['src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',

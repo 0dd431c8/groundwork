@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "jotai": {
+      "source": "jotaijs/jotai-skills",
+      "sourceType": "github",
+      "skillPath": "skills/jotai/SKILL.md",
+      "computedHash": "ab3e62de88075ca15bfc2f1e5f890beca53bd8d6922b7659ba7eeba59d5ee7aa"
+    }
+  }
+}
