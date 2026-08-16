@@ -32,8 +32,8 @@
         ],
         "patterns": [
           {
-            "group": ["@/features/*/*", "!@/features/*/*-panel"],
-            "message": "A feature is reached through its `<feature>-panel` entry component only. Inside a feature import relatively (`./counter.state`); from outside, import the panel.",
+            "group": ["@/features/*/*"],
+            "message": "Import a feature through its index (`@/features/counter`), not its internals. Inside a feature, import relatively (`./counter.state`).",
           },
         ],
       },
@@ -75,8 +75,8 @@
             ],
             "patterns": [
               {
-                "group": ["@/features/*/*", "!@/features/*/*-panel"],
-                "message": "A feature is reached through its `<feature>-panel` entry component only. Inside a feature import relatively (`./counter.state`); from outside, import the panel.",
+                "group": ["@/features/*/*"],
+                "message": "Import a feature through its index (`@/features/counter`), not its internals. Inside a feature, import relatively (`./counter.state`).",
               },
               {
                 "group": ["./*.queries", "./*.api"],

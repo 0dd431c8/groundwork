@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { CounterPanel } from '@/features/counter/counter-panel';
+import { CounterPanel } from '@/features/counter';
 
 export const Route = createFileRoute('/')({
   component: Home,

@@ -25,8 +25,9 @@ runner; it is not the server or the bundler.
 - `src/features/<name>/` holds everything that belongs to one feature: state, components and
   their tests, side by side. `src/features/counter/` is the worked example. Files are named
   `<feature>.state.ts` (atoms), `<feature>.api.ts` (transport), `<feature>.queries.ts` (React
-  Query definitions), and one `.tsx` per component with its `.test.tsx` beside it. See
-  "Feature structure" below before adding folders inside one.
+  Query definitions), and one `.tsx` per component with its `.test.tsx` beside it. `index.ts`
+  is the feature's public surface and the only path outside code may import. See "Feature
+  structure" below before adding folders inside one.
 - `src/lib/` is infrastructure and app-agnostic helpers only: the singletons `main.tsx` wires
   up (`router.ts`, `query-client.ts`, `store.ts`) and generic utilities (`utils.ts`). Feature
   code does not go here. If a module names a feature, it belongs in `src/features/`.
@@ -41,18 +42,20 @@ A feature folder is flat. Stay that way until it hurts, which in practice is som
 15-20 source files, and is about scrolling to find things rather than anything structural.
 `src/features/counter/` is six source modules, nowhere near it.
 
-- Each feature exports one entry component, named `<feature>-panel.tsx`, and that is the only
-  file a route imports. `CounterPanel` composes `Counter`, `SaveScoreButton` and `ScoreList`;
-  `src/routes/index.tsx` places it and knows nothing else about the feature. Without this the
-  route ends up owning how a feature's pieces stack, and renaming an internal component breaks
-  routing for no reason connected to routing.
+- Every feature has an `index.ts` naming what it exports, and that is the only path anything
+  outside may import: `@/features/counter`, never `@/features/counter/score-list`. What a
+  feature exports is its own business - one component, several, a hook, a type - so nothing
+  here prescribes what the entry has to be or what it is called. `src/features/counter/`
+  happens to export a single `CounterPanel` that composes `Counter`, `SaveScoreButton` and
+  `ScoreList`, which keeps `src/routes/index.tsx` from owning how a feature's pieces stack, but
+  a feature with one component or no component at all is just as valid.
+- List the exports in `index.ts`, never `export *`. The bundling objection to barrels is about
+  re-exporting a whole folder; a named list of one or two entries is not that, and moving this
+  repo onto one left the route chunk byte-identical.
 - When a feature really does outgrow flat, split it by sub-domain, never by technical type.
   `checkout/{cart,payment,confirmation}/` follows how the code changes; adding
   `components/`, `hooks/` and `state/` folders just recreates, one level down, the by-type
   organisation that moving the counter out of `src/lib` and `src/components` got rid of.
-- No barrel `index.ts` at the feature root. It reads nicer, but a barrel means importing one
-  component can drag the whole feature into a route chunk, and this repo code-splits per route
-  (see `codeSplitting` in `vite.config.ts`). Longer explicit import paths are the price.
 - Dependencies point one way: `.state.ts` <- `.queries.ts` <- components. Nothing imports back
   up the chain, and no feature imports another feature's internals. This matters more than the
   folder shape, and `.oxlintrc.jsonc` enforces it rather than leaving it to review. See "Lint
@@ -175,9 +178,10 @@ Bypass with `git commit --no-verify`.
 - `useEffect` is banned from `react` imports. Derive state or use event handlers. If genuinely
   unavoidable, add `// oxlint-disable-next-line no-restricted-imports` with a justification.
 - `max-lines` 400, `max-lines-per-function` 40, `complexity` 15. Test files are exempt.
-- `@/features/*/*` is restricted everywhere except `@/features/*/*-panel`, so a feature can only
-  be reached through its entry component and its internals stay internal. Inside a feature you
-  import relatively, which the same rule pushes you towards.
+- `@/features/*/*` is restricted, so a feature is reachable only through its `index.ts` and its
+  internals stay internal. Inside a feature you import relatively, which the same rule pushes
+  you towards. There is no exemption for particular filenames, deliberately: the rule should not
+  care what a feature chooses to call its parts.
 - `src/features/*/*.state.ts` additionally cannot import `./*.queries` or `./*.api`. That is the
   dependency direction from "Feature structure" made enforceable: client state never reaches up
   into the server-state layer.
