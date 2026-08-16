@@ -11,32 +11,32 @@ describe('counter.api', () => {
     vi.resetModules();
   });
 
-  it('returns the seeded scores newest first', async () => {
-    const { fetchScores } = await freshApi();
+  it('returns the seeded counts newest first', async () => {
+    const { fetchCounts } = await freshApi();
 
-    const scores = await fetchScores();
+    const counts = await fetchCounts();
 
-    expect(scores.map((score) => score.value)).toEqual([4, 2]);
+    expect(counts.map((saved) => saved.value)).toEqual([4, 2]);
   });
 
   it('hands out copies, so a caller cannot edit the server rows', async () => {
-    const { fetchScores } = await freshApi();
+    const { fetchCounts } = await freshApi();
 
-    const first = await fetchScores();
-    const second = await fetchScores();
+    const first = await fetchCounts();
+    const second = await fetchCounts();
 
     expect(first).toEqual(second);
     expect(first[0]).not.toBe(second[0]);
   });
 
-  it('prepends a saved score and gives it a fresh id', async () => {
-    const { fetchScores, saveScore } = await freshApi();
+  it('prepends a saved count and gives it a fresh id', async () => {
+    const { fetchCounts, saveCount } = await freshApi();
 
-    const saved = await saveScore(3);
-    const scores = await fetchScores();
+    const saved = await saveCount(3);
+    const counts = await fetchCounts();
 
     expect(saved.value).toBe(3);
     expect(saved.id).toBe('3');
-    expect(scores.map((score) => score.value)).toEqual([3, 4, 2]);
+    expect(counts.map((row) => row.value)).toEqual([3, 4, 2]);
   });
 });

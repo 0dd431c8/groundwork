@@ -4,14 +4,14 @@ import {
   useQueryClient,
   type UseMutationResult,
 } from '@tanstack/react-query';
-import { fetchScores, saveScore, type Score } from './counter.api';
+import { fetchCounts, saveCount, type SavedCount } from './counter.api';
 
-export const scoresKey = ['scores'] as const;
+export const countsKey = ['counts'] as const;
 
-export const scoresQuery = queryOptions({
-  queryKey: scoresKey,
-  // Wrapped, not `queryFn: fetchScores`: React Query would pass its context object in.
-  queryFn: () => fetchScores(),
+export const countsQuery = queryOptions({
+  queryKey: countsKey,
+  // Wrapped, not `queryFn: fetchCounts`: React Query would pass its context object in.
+  queryFn: () => fetchCounts(),
 });
 
 /**
@@ -19,11 +19,11 @@ export const scoresQuery = queryOptions({
  * passed to `mutate()` are dropped if the caller unmounts before the request settles,
  * so navigating away mid-save would skip the invalidation.
  */
-export function useSaveScore(): UseMutationResult<Score, Error, number> {
+export function useSaveCount(): UseMutationResult<SavedCount, Error, number> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (value: number) => saveScore(value),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: scoresKey }),
+    mutationFn: (value: number) => saveCount(value),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: countsKey }),
   });
 }

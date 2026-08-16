@@ -2,13 +2,13 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchScores, saveScore, type Score } from './counter.api';
-import { scoresQuery, useSaveScore } from './counter.queries';
+import { fetchCounts, saveCount, type SavedCount } from './counter.api';
+import { countsQuery, useSaveCount } from './counter.queries';
 
 // Only the transport is mocked, so the real query wiring is what gets exercised.
 vi.mock('./counter.api');
 
-const score = (id: string, value: number): Score => ({
+const savedCount = (id: string, value: number): SavedCount => ({
   id,
   value,
   savedAt: Date.UTC(2026, 7, 16, 9, 0),
@@ -22,42 +22,42 @@ function withClient() {
   return { queryClient, wrapper };
 }
 
-describe('useSaveScore', () => {
+describe('useSaveCount', () => {
   beforeEach(() => {
-    vi.mocked(fetchScores).mockReset().mockResolvedValue([]);
-    vi.mocked(saveScore).mockReset().mockResolvedValue(score('9', 3));
+    vi.mocked(fetchCounts).mockReset().mockResolvedValue([]);
+    vi.mocked(saveCount).mockReset().mockResolvedValue(savedCount('9', 3));
   });
 
   it('sends the value it is given to the transport', async () => {
     const { wrapper } = withClient();
-    const { result } = renderHook(() => useSaveScore(), { wrapper });
+    const { result } = renderHook(() => useSaveCount(), { wrapper });
 
     result.current.mutate(3);
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(saveScore).toHaveBeenCalledExactlyOnceWith(3);
+    expect(saveCount).toHaveBeenCalledExactlyOnceWith(3);
   });
 
-  it('invalidates the score list on success', async () => {
+  it('invalidates the count list on success', async () => {
     const { wrapper } = withClient();
-    const { result } = renderHook(() => ({ list: useQuery(scoresQuery), save: useSaveScore() }), {
+    const { result } = renderHook(() => ({ list: useQuery(countsQuery), save: useSaveCount() }), {
       wrapper,
     });
 
     await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
-    expect(fetchScores).toHaveBeenCalledOnce();
+    expect(fetchCounts).toHaveBeenCalledOnce();
 
-    vi.mocked(fetchScores).mockResolvedValue([score('9', 3)]);
+    vi.mocked(fetchCounts).mockResolvedValue([savedCount('9', 3)]);
     result.current.save.mutate(3);
 
-    await waitFor(() => expect(fetchScores).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(result.current.list.data).toEqual([score('9', 3)]));
+    await waitFor(() => expect(fetchCounts).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.list.data).toEqual([savedCount('9', 3)]));
   });
 
   it('does not invalidate when the save fails', async () => {
-    vi.mocked(saveScore).mockRejectedValue(new Error('offline'));
+    vi.mocked(saveCount).mockRejectedValue(new Error('offline'));
     const { wrapper } = withClient();
-    const { result } = renderHook(() => ({ list: useQuery(scoresQuery), save: useSaveScore() }), {
+    const { result } = renderHook(() => ({ list: useQuery(countsQuery), save: useSaveCount() }), {
       wrapper,
     });
 
@@ -65,6 +65,6 @@ describe('useSaveScore', () => {
     result.current.save.mutate(3);
 
     await waitFor(() => expect(result.current.save.isError).toBe(true));
-    expect(fetchScores).toHaveBeenCalledOnce();
+    expect(fetchCounts).toHaveBeenCalledOnce();
   });
 });

@@ -48,11 +48,12 @@ A feature folder is flat. Stay that way until it hurts, which in practice is som
 `src/features/counter/` is six source modules, nowhere near it.
 
 - Every feature has an `index.ts` naming what it exports, and that is the only path anything
-  outside may import: `@/features/counter`, never `@/features/counter/score-list`. What a
+  outside may import: `@/features/counter`, never `@/features/counter/count-list`. What a
   feature exports is its own business - one component, several, a hook, a type - so nothing
   here prescribes what the entry has to be or what it is called. `src/features/counter/`
-  happens to export a single `CounterPanel` that composes `Counter`, `SaveScoreButton` and
-  `ScoreList`, which keeps `src/routes/index.tsx` from owning how a feature's pieces stack, but
+  happens to export a single `CounterPanel` that composes `Counter`, `SaveCountButton` and
+  `SavedCountList`, which keeps `src/routes/index.tsx` from owning how a feature's pieces stack,
+  but
   a feature with one component or no component at all is just as valid.
 - List the exports in `index.ts`, never `export *`. The bundling objection to barrels is about
   re-exporting a whole folder; a named list of one or two entries is not that, and moving this
@@ -98,13 +99,13 @@ gets copied into an atom, and ephemeral UI state never gets parked in the query 
 mutation changes server data, invalidate the key and let the query refetch; do not hand the
 response to `setState` or to a `set(...)`.
 
-- `src/features/counter/save-score-button.tsx` is where the two layers meet, and is the
+- `src/features/counter/save-count-button.tsx` is where the two layers meet, and is the
   clearest thing to read first: the value being saved comes from `countAtom`, the saved list
   comes from the query cache, and nothing copies one into the other.
 - Define queries with `queryOptions` in `<feature>.queries.ts`, exporting the key separately
-  (`scoresKey`) so the definition and every `invalidateQueries` call cannot drift apart. Pass
-  the whole object to `useQuery(scoresQuery)`.
-- Mutations get a custom hook in the same file (`useSaveScore`), never an inline `useMutation`
+  (`countsKey`) so the definition and every `invalidateQueries` call cannot drift apart. Pass
+  the whole object to `useQuery(countsQuery)`.
+- Mutations get a custom hook in the same file (`useSaveCount`), never an inline `useMutation`
   in a component. What a mutation invalidates is a fact about the data, not about the widget
   that triggered it, so a component should never name a query key. Keep `onSuccess` on the hook
   options rather than on the `mutate()` call: callbacks passed to `mutate()` are dropped if the
@@ -115,7 +116,7 @@ response to `setState` or to a `set(...)`.
   `vi.mock('./counter.api')` to control it while the real `queryOptions` still runs, so what is
   under test is the production query wiring. Merging the two files would mean mocking the query
   config too.
-- Wrap the call: `queryFn: () => fetchScores()`, not `queryFn: fetchScores`. React Query passes
+- Wrap the call: `queryFn: () => fetchCounts()`, not `queryFn: fetchCounts`. React Query passes
   a context object into query and mutation functions, and a bare reference means the transport
   silently receives it.
 - `src/lib/query-client.ts` is left on the library defaults on purpose, including `staleTime: 0`,
