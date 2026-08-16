@@ -16,6 +16,10 @@
       { "max": 40, "skipBlankLines": true, "skipComments": true, "IIFEs": true },
     ],
     "complexity": ["error", 15],
+    "import/no-cycle": "error",
+    // Keep in sync with the src/features/*/*.state.ts override below. oxlint replaces
+    // this rule wholesale rather than merging when an override redeclares it, so the
+    // override has to repeat every entry it still wants.
     "no-restricted-imports": [
       "error",
       {
@@ -24,6 +28,12 @@
             "name": "react",
             "importNames": ["useEffect"],
             "message": "useEffect is banned. Derive state, use event handlers, or - if truly unavoidable - add `// oxlint-disable-next-line no-restricted-imports` on the import with a justification comment.",
+          },
+        ],
+        "patterns": [
+          {
+            "group": ["@/features/*/*", "!@/features/*/*-panel"],
+            "message": "A feature is reached through its `<feature>-panel` entry component only. Inside a feature import relatively (`./counter.state`); from outside, import the panel.",
           },
         ],
       },
@@ -45,6 +55,36 @@
       "files": ["src/components/ui/**"],
       "rules": {
         "no-restricted-imports": "off",
+      },
+    },
+    {
+      // The state layer sits at the bottom of a feature: client state must not reach up
+      // into the server-state layer or the transport. Everything above is repeated from
+      // the base config because oxlint replaces this rule rather than merging it.
+      "files": ["src/features/*/*.state.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "react",
+                "importNames": ["useEffect"],
+                "message": "useEffect is banned. Derive state, use event handlers, or - if truly unavoidable - add `// oxlint-disable-next-line no-restricted-imports` on the import with a justification comment.",
+              },
+            ],
+            "patterns": [
+              {
+                "group": ["@/features/*/*", "!@/features/*/*-panel"],
+                "message": "A feature is reached through its `<feature>-panel` entry component only. Inside a feature import relatively (`./counter.state`); from outside, import the panel.",
+              },
+              {
+                "group": ["./*.queries", "./*.api"],
+                "message": "Dependencies point one way: .state.ts <- .queries.ts <- components. Client state must not import the server-state layer or the transport. Derive the other direction instead.",
+              },
+            ],
+          },
+        ],
       },
     },
   ],

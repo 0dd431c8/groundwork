@@ -55,9 +55,8 @@ A feature folder is flat. Stay that way until it hurts, which in practice is som
   (see `codeSplitting` in `vite.config.ts`). Longer explicit import paths are the price.
 - Dependencies point one way: `.state.ts` <- `.queries.ts` <- components. Nothing imports back
   up the chain, and no feature imports another feature's internals. This matters more than the
-  folder shape and is currently a convention rather than something enforced; a lint rule
-  (`import/no-restricted-paths` or dependency-cruiser) is the way to make it real if it starts
-  slipping.
+  folder shape, and `.oxlintrc.jsonc` enforces it rather than leaving it to review. See "Lint
+  rules worth knowing" for what the rules actually catch.
 
 ## State
 
@@ -176,6 +175,21 @@ Bypass with `git commit --no-verify`.
 - `useEffect` is banned from `react` imports. Derive state or use event handlers. If genuinely
   unavoidable, add `// oxlint-disable-next-line no-restricted-imports` with a justification.
 - `max-lines` 400, `max-lines-per-function` 40, `complexity` 15. Test files are exempt.
+- `@/features/*/*` is restricted everywhere except `@/features/*/*-panel`, so a feature can only
+  be reached through its entry component and its internals stay internal. Inside a feature you
+  import relatively, which the same rule pushes you towards.
+- `src/features/*/*.state.ts` additionally cannot import `./*.queries` or `./*.api`. That is the
+  dependency direction from "Feature structure" made enforceable: client state never reaches up
+  into the server-state layer.
+- `import/no-cycle` is on. It is the backstop for direction mistakes the two patterns above
+  cannot name, since most of them close a loop.
+- oxlint has no `import/no-restricted-paths`; the above is built from `no-restricted-imports`
+  patterns plus `overrides`. Two things to know before editing them. An override **replaces**
+  this rule rather than merging, so the `*.state.ts` override repeats the `useEffect` entry and
+  the feature-entry pattern verbatim; change one and you must change both. And a `group` glob
+  matches path segments, so `@/features/*` does not match `@/features/counter/counter` - that
+  needs `@/features/*/*`. Both are easy to get wrong silently, so verify a rule change by
+  writing a file that should fail and confirming it does.
 
 ## Testing
 
