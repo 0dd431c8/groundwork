@@ -1,34 +1,51 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- TODO: set description -->
-    <meta name="description" content="" />
-    <meta name="theme-color" content="#111213" />
+    <!-- Resolves the theme before first paint. Must stay inline and untyped: a module
+         is deferred, so the page would paint the wrong palette and correct itself.
+         `theme` is 'light' | 'dark'; absent means follow the OS. localStorage throws
+         in Safari private mode. -->
+    <script>
+      try {
+        const stored = localStorage.getItem('theme');
+        const dark = stored
+          ? stored === 'dark'
+          : matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', dark);
+      } catch {}
+    </script>
 
-    <!-- TODO: provide icon url -->
-    <link rel="apple-touch-icon" href="" />
-    <meta property="og:type" content="website" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
 
-    <!-- TODO: set site name -->
-    <meta property="og:site_name" content="" />
-    <meta property="og:title" content="" />
+    <!-- Safari below 26 ignores the SVG. Drop favicon.ico (32x32) and
+         apple-touch-icon.png (180x180) into public/ and uncomment. -->
+    <!--
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    -->
 
-    <!-- TODO: set site description -->
-    <meta property="og:description" content="" />
-
-    <!-- TODO: set site url -->
-    <meta property="og:url" content="" />
-
-    <!-- TODO: set icon url -->
-    <meta property="og:image" content="" />
+    <!-- Hand-mirrored from --background in src/styles/index.css; update both together. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0a09" />
 
     <title>React Boilerplate</title>
+    <meta name="description" content="Vite + React 19 + TanStack Router single-page app." />
+
+    <!-- Placeholders: replace example.com before deploying. og:url and og:image have to
+         be absolute https URLs, since scrapers discard relative ones. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="React Boilerplate" />
+    <meta property="og:title" content="React Boilerplate" />
+    <meta property="og:description" content="Vite + React 19 + TanStack Router single-page app." />
+    <meta property="og:url" content="https://example.com/" />
+    <meta property="og:image" content="https://example.com/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
+    <noscript>This app needs JavaScript to run.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

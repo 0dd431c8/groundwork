@@ -18,7 +18,12 @@ runner; it is not the server or the bundler.
 
 ## Layout
 
-- `index.html` is the Vite entry. It hard-codes `class="dark"` on `<html>`.
+- `index.html` is the Vite entry. See "Theme" below for the inline script in its `<head>`,
+  and "Document head" for what the static metadata can and cannot do.
+- `public/` is copied into `dist/` verbatim and served at `/`, for files that need an exact
+  name at a known URL: `icon.svg` and `robots.txt` today, plus `favicon.ico` and
+  `apple-touch-icon.png` when someone makes them. Anything a module can `import` belongs in
+  `src/` instead, so it gets hashed and revved.
 - `src/main.tsx` mounts React and wires the router and the React Query client.
 - `src/routes/` holds TanStack Router file-based routes. `src/routeTree.gen.ts` is generated
   by `@tanstack/router-plugin` and committed; never edit it by hand.
@@ -118,6 +123,40 @@ response to `setState` or to a `set(...)`.
 - `jotai-tanstack-query` is deliberately not installed. Plain `useQuery`/`useMutation` next to
   plain atoms is what keeps the boundary above legible. The thing that would justify adopting it
   is a derived atom that has to read server data; until an atom needs that, it buys nothing.
+
+## Theme
+
+`<html>` carries no class in the markup. A synchronous inline script in `index.html` puts
+`.dark` on it before first paint, which is what makes both the `:root` and `.dark` token
+blocks in `src/styles/index.css` live rather than one of them dead code.
+
+- The contract is `localStorage['theme']`: `'light' | 'dark'`, and **absent means follow
+  `prefers-color-scheme`**. Nothing writes the key yet, so today the script reduces to
+  honouring the OS, which is the correct default with no toggle UI.
+- A toggle should be a `theme.state.ts` atom using `atomWithStorage` on the same key with
+  `{ getOnInit: true }`, per "State" above. It needs no change to `index.html`.
+- The script has to stay inline and untyped. `type="module"` is deferred, so the page would
+  paint the wrong palette and correct itself on mount. That also makes it the one thing in
+  the repo needing a nonce or hash if a Content-Security-Policy is ever added.
+- The two `theme-color` metas are hand-mirrored hex copies of `--background` (`#ffffff` and
+  `#0c0a09`). They drift silently, which is exactly how the previous `#111213` got there, so
+  change them with the token. They are media-scoped, so browser chrome follows the OS even
+  when a stored value overrides the page; fix that in whatever adds the toggle.
+
+## Document head
+
+`index.html` is the only head a social scraper sees, since Slack, LinkedIn and X do not run
+JS. So site-level metadata is static there, and every tag ships with a real value: an empty
+`content=""` is worse than an absent tag, because a scraper treats the property as answered
+and stops looking for a fallback. An empty URL attribute is worse still, since it resolves
+to the document's own URL and makes the client fetch the page as an image.
+
+`og:url` and `og:image` are `https://example.com/…` placeholders; replace them, keeping them
+absolute, since relative OG URLs are discarded.
+
+Per-route titles are the job of TanStack Router's `head` route option plus `<HeadContent />`
+in `__root.tsx`, not of more tags here. Worth adding once there is more than one route;
+it does nothing for link previews.
 
 ## Build and tooling
 
