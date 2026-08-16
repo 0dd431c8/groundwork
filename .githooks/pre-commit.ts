@@ -7,7 +7,7 @@
  */
 
 // CSS is included because oxfmt formats it too; oxlint ignores it and exits 0.
-const SOURCE_FILE = /\.([cm]?[jt]sx?|css)$/;
+const SOURCE_FILE = /\.([cm]?[jt]sx?|css)$/u;
 
 function fail(message: string): never {
   console.error(`pre-commit: ${message}`);

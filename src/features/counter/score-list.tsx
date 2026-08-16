@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Score } from './counter.api';
 import { scoresQuery } from './counter.queries';
@@ -14,7 +15,7 @@ function ScoreRow({ score }: { score: Score }) {
   );
 }
 
-export function ScoreList() {
+export function ScoreList(): JSX.Element {
   const { data, isPending, isError } = useQuery(scoresQuery);
 
   if (isPending) return <p className="text-sm text-muted-foreground">Loading scores...</p>;

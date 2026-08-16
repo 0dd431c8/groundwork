@@ -9,7 +9,12 @@ import { store } from './lib/store';
 
 import './styles/index.css';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+// `!` is banned, and it would only have converted a missing #root into a confusing
+// null-deref inside React. Failing here names the actual problem: index.html changed.
+const rootElement = document.querySelector('#root');
+if (!rootElement) throw new Error('No #root element in index.html to mount into.');
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <Provider store={store}>

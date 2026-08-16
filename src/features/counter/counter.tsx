@@ -1,8 +1,9 @@
+import type { JSX } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { Button } from '@/components/ui/button';
 import { canDecrementAtom, canIncrementAtom, countAtom, stepAtom } from './counter.state';
 
-export function Counter() {
+export function Counter(): JSX.Element {
   const count = useAtomValue(countAtom);
   const canDecrement = useAtomValue(canDecrementAtom);
   const canIncrement = useAtomValue(canIncrementAtom);

@@ -18,7 +18,12 @@ let scores: Score[] = [
 // Sequential rather than crypto.randomUUID() so ids are predictable in tests.
 let nextId = scores.length + 1;
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// Braced on purpose: an arrow shorthand here would return the timeout id out of the
+// Promise executor, where the return value is meaningless and silently ignored.
+const delay = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 export async function fetchScores(): Promise<Score[]> {
   await delay(300);

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, type RenderOptions } from '@testing-library/react';
+import { render, type RenderOptions, type RenderResult } from '@testing-library/react';
 import { createStore, Provider } from 'jotai';
 import type { ReactElement, ReactNode } from 'react';
 
@@ -37,10 +37,12 @@ function createTestQueryClient() {
  *     store.set(countAtom, MAX_COUNT);
  *     renderWithProviders(<Counter />, { store });
  */
+type Rendered = RenderResult & { store: Store; queryClient: QueryClient };
+
 export function renderWithProviders(
   ui: ReactElement,
   { store = createStore(), queryClient = createTestQueryClient(), ...options }: Options = {},
-) {
+): Rendered {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <Provider store={store}>{children}</Provider>

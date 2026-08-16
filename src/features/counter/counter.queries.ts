@@ -1,5 +1,10 @@
-import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchScores, saveScore } from './counter.api';
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+  type UseMutationResult,
+} from '@tanstack/react-query';
+import { fetchScores, saveScore, type Score } from './counter.api';
 
 export const scoresKey = ['scores'] as const;
 
@@ -31,7 +36,7 @@ export const scoresQuery = queryOptions({
  * Still one `useMutation` per call site, which is what gives each caller its own
  * `isPending`. Sharing that would need a `mutationKey` and `useMutationState`.
  */
-export function useSaveScore() {
+export function useSaveScore(): UseMutationResult<Score, Error, number> {
   const queryClient = useQueryClient();
 
   return useMutation({

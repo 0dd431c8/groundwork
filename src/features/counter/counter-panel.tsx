@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Counter } from './counter';
 import { SaveScoreButton } from './save-score-button';
 import { ScoreList } from './score-list';
@@ -7,7 +8,7 @@ import { ScoreList } from './score-list';
  * here rather than in the route means the number of pieces this feature has, and how
  * they stack, stay the feature's business.
  */
-export function CounterPanel() {
+export function CounterPanel(): JSX.Element {
   return (
     <section className="flex flex-col items-center gap-8">
       <Counter />
