@@ -14,7 +14,8 @@ runner; it is not the server or the bundler.
 - `bunx <package>` instead of `npx <package>`
 - `bun <file>` instead of `node <file>` or `ts-node <file>` for one-off scripts
 - Bun loads `.env` automatically, so don't add `dotenv`
-- Vite only exposes env vars prefixed `VITE_`, via `import.meta.env`
+- Vite only exposes env vars prefixed `VITE_`, via `import.meta.env`. App code reads them
+  through `src/lib/env.ts`, never directly; see "Configuration"
 
 ## Layout
 
@@ -34,8 +35,9 @@ runner; it is not the server or the bundler.
   is the feature's public surface and the only path outside code may import. See "Feature
   structure" below before adding folders inside one.
 - `src/lib/` is infrastructure and app-agnostic helpers only: the singletons `main.tsx` wires
-  up (`router.ts`, `query-client.ts`, `store.ts`) and generic utilities (`utils.ts`). Feature
-  code does not go here. If a module names a feature, it belongs in `src/features/`.
+  up (`router.ts`, `query-client.ts`, `store.ts`), the validated `env.ts` (see "Configuration"),
+  and generic utilities (`utils.ts`). Feature code does not go here. If a module names a
+  feature, it belongs in `src/features/`.
 - `src/components/` is for components shared across features. Right now that is only the
   vendored `ui/` directory.
 - `src/styles/index.css` is the single stylesheet: Tailwind v4 import, theme tokens for
@@ -124,6 +126,56 @@ response to `setState` or to a `set(...)`.
 - `jotai-tanstack-query` is deliberately not installed. Plain `useQuery`/`useMutation` next to
   plain atoms is what keeps the boundary above legible. The thing that would justify adopting it
   is a derived atom that has to read server data; until an atom needs that, it buys nothing.
+
+## Configuration
+
+`src/lib/env.ts` is the only module that reads a `VITE_` variable off `import.meta.env`.
+Everything else imports the parsed `env` object from it. The schema is a zod `z.object()`, and
+a failed parse throws at module load with `z.prettifyError` naming the key, so a bad value
+fails the first paint rather than becoming `undefined` three layers down.
+
+- Adding a variable is one line in `envSchema` and one in `.env.example`. Both, always: a
+  variable nobody can discover is a variable nobody sets.
+- Every variable needs a `.default()`. A fresh clone with no `.env` has to run, so validation
+  is there to catch a _wrong_ value, not a missing one.
+- Raw values are always strings. Use `z.stringbool()` for booleans, which takes `true`, `1`,
+  `yes`, `on`, `y`, `enabled` and their opposites case-insensitively, and `z.coerce.number()`
+  for numbers.
+- `.default()` takes the **output** type, so it is `z.stringbool().default(false)`, not
+  `.default('false')`. `.prefault()` is the one that takes the input type and runs it through
+  the parse. Getting this backwards type-errors, but the error points at the wrong thing.
+- The whole `import.meta.env` object is handed to `safeParse`, rather than a hand-written map
+  of keys. Vite's `define` plugin replaces a bare `import.meta.env` with the full serialised
+  object at build time, not just literal member accesses, so this works in a bundle and not
+  only under the dev server. `safeParse` takes `unknown`, so nothing untyped escapes, and it
+  saves augmenting `ImportMetaEnv` - which `noPropertyAccessFromIndexSignature` would otherwise
+  force for every single dot access.
+- `import.meta.env.DEV`, `.PROD` and `.MODE` stay directly accessible everywhere. Being
+  statically replaced is the entire point of them, and `z.object` strips them from `env`.
+- `src/routes/__root.tsx` keeps the `import.meta.env.DEV` guard in front of
+  `env.VITE_ENABLE_DEVTOOLS`, so the variable can only turn the devtools off in dev, never on in
+  prod. That is a statement of intent, not a bundle optimisation: measured both ways, and with
+  the `DEV` guard removed outright, the built output is the same to within 0.2 kB, because the
+  two TanStack devtools packages already resolve to production no-ops. Keep the guard anyway -
+  it is what makes the branch provably dead if that ever stops being true.
+- `envPrefix` and `envDir` are left at their defaults. `.env` is read at build time, so `dist/`
+  is baked per environment; anything that has to change without a rebuild needs a different
+  mechanism, such as a `/config.json` fetched at startup.
+- `.env.example` is committed. `.env`, `.env.local` and `.env.*.local` are gitignored.
+- zod is the one dependency here that is not free: it costs 14.45 kB brotli, taking the bundle
+  from 105.52 kB to 119.97 kB. `zod/mini` was measured at 3.78 kB and passed over, because its
+  functional form is `z._default(z.stringbool(), ...)`, which trips `no-underscore-dangle` and
+  reads worse with every variable added. The bet is that a real app wants zod for forms and API
+  parsing anyway, at which point this is paid for. If that never happens and the bundle matters,
+  `zod/mini` is a ten-line swap plus one lint exception.
+- Deliberately not installed: `@t3-oss/env-core`, whose value is the server/client split and the
+  runtime guard against reading a server variable in client code, neither of which means
+  anything without a server; and `vite-plugin-validate-env`, which would need the schema to live
+  outside `src` so `vite.config.ts` could import it, crossing the tsconfig project split for a
+  build-time error the boot-time throw already gives.
+- Tailwind v4's automatic source detection scans this file too, so a plain English word in this
+  prose can emit a utility class and its breakpoint media queries into `dist`. That is where a
+  mysterious 270 bytes of CSS came from once, while writing the section above.
 
 ## Theme
 
