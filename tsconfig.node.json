@@ -1,12 +1,9 @@
 {
-  // Tooling that runs in Bun rather than the browser: the Vite config and the git
-  // hooks. Same strictness as the app, different globals and no DOM.
+  // Tooling that runs in Bun rather than the browser: same strictness, no DOM.
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    // `composite` is what makes this a referenced project, and TS7 forbids a
-    // referenced project from setting `noEmit` (TS6310). So the emit has to go
-    // somewhere harmless: left at the default it would write vite.config.js next
-    // to vite.config.ts, and Vite loads a stale .js in preference to the .ts.
+    // TS7 forbids `noEmit` on a referenced project (TS6310), and the default output would
+    // put a vite.config.js next to vite.config.ts, which Vite then loads in preference.
     "composite": true,
     "noEmit": false,
     "emitDeclarationOnly": true,
@@ -14,8 +11,7 @@
     "lib": ["ESNext"],
     "types": ["bun"]
   },
-  // A glob, not a filename: vitest.config.ts and playwright.config.ts are already
-  // referenced by package.json scripts and should be covered the day they appear.
+  // A glob, so a vitest.config.ts or playwright.config.ts is covered the day it appears.
   "include": ["*.config.ts", ".githooks/**/*.ts"],
   "references": []
 }

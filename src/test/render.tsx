@@ -3,8 +3,7 @@ import { render, type RenderOptions, type RenderResult } from '@testing-library/
 import { createStore, Provider } from 'jotai';
 import type { ReactElement, ReactNode } from 'react';
 
-// Jotai exports the store type from 'jotai/vanilla/store' but does not re-export it
-// from the package root, so derive it rather than importing through a deep path.
+// Jotai does not re-export its store type from the package root, so derive it.
 type Store = ReturnType<typeof createStore>;
 
 type Options = Omit<RenderOptions, 'wrapper'> & {
@@ -12,33 +11,24 @@ type Options = Omit<RenderOptions, 'wrapper'> & {
   queryClient?: QueryClient;
 };
 
-/**
- * `retry: false` is the important part. The app client retries a failed query three
- * times with exponential backoff, so without this any test of an error branch waits
- * seconds for a state that will never arrive and then fails as a timeout.
- */
+// Without `retry: false` a test of an error branch waits out three backoffs and times out.
 function createTestQueryClient() {
   return new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 }
 
+type Rendered = RenderResult & { store: Store; queryClient: QueryClient };
+
 /**
- * Renders `ui` inside the same provider stack as src/main.tsx, defaulting both the
- * Jotai store and the QueryClient to instances created for this call so neither atom
- * state nor cached queries leak between test cases.
- *
- * To start a case from a specific state, build the store yourself and seed it with
- * `store.set(...)` before rendering - that is the same write path production code uses,
- * and it avoids `useHydrateAtoms`, which only earns its keep when you cannot reach the
- * store before the first render (SSR).
+ * Renders `ui` in the same provider stack as src/main.tsx, over a store and a
+ * QueryClient created per call. To start from a specific state, seed a store with
+ * `store.set(...)` and pass it in:
  *
  *     const store = createStore();
  *     store.set(countAtom, MAX_COUNT);
  *     renderWithProviders(<Counter />, { store });
  */
-type Rendered = RenderResult & { store: Store; queryClient: QueryClient };
-
 export function renderWithProviders(
   ui: ReactElement,
   { store = createStore(), queryClient = createTestQueryClient(), ...options }: Options = {},

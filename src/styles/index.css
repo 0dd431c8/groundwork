@@ -4,10 +4,9 @@
 @import '@fontsource-variable/noto-sans';
 @import '@fontsource-variable/playfair-display';
 
-/* The two font imports above pull all 8 writing-system subsets (~440 KB of woff2 into
-   dist/assets). Browsers fetch them on demand per unicode-range, so most visitors never
-   download more than latin; the cost is dist size and CDN upload, not page weight.
-   To ship latin only: delete the two imports above and uncomment the blocks below. */
+/* The font imports above pull all 8 writing-system subsets (~440 KB of woff2 into
+   dist/assets), fetched per unicode-range so it costs dist size, not page weight.
+   To ship latin only: delete those two imports and uncomment the blocks below. */
 /*
 @font-face {
   font-family: 'Noto Sans Variable';
@@ -49,8 +48,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Drives native UI (scrollbars, form controls, autofill, over-scroll) off the same
-     class that drives the palette below, rather than off the OS preference. */
+  /* Drives native UI off the same class as the palette below, not the OS preference. */
   color-scheme: light;
   --background: oklch(1 0 0);
   --foreground: oklch(0.147 0.004 49.3);
@@ -71,8 +69,8 @@
   --border: oklch(0.922 0.005 34.3);
   --input: oklch(0.922 0.005 34.3);
   --ring: oklch(0.714 0.014 41.2);
-  /* Ramp runs light -> dark against the white background. The .dark block inverts it;
-     keeping both identical would sink one end into the background. */
+  /* Ramp runs light -> dark; the .dark block inverts it so neither end sinks into the
+     background. */
   --chart-1: oklch(0.714 0.014 41.2);
   --chart-2: oklch(0.617 0.019 42.5);
   --chart-3: oklch(0.52 0.02 40.5);

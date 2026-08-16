@@ -12,11 +12,8 @@
     "node",
   ],
   "options": {
-    // Type-aware rules, run through `oxlint-tsgolint` against the real TypeScript
-    // program. This is the only tier that sees across a call boundary, so it is what
-    // catches an unawaited promise or an `any` spreading out of an untyped edge.
-    // Requires TypeScript 7; do not downgrade TypeScript without removing this first.
-    // Measured at ~0.1s extra on this codebase, so it is on for every run.
+    // Runs the type-aware rules below against the real TypeScript program, which is the
+    // only tier that sees across a call boundary. Requires TypeScript 7. Costs ~0.1s.
     "typeAware": true,
   },
   "categories": {
@@ -24,12 +21,9 @@
     "suspicious": "error",
     "pedantic": "error",
     "perf": "error",
-    // `style` is off: 253 findings, nearly all of it formatting that oxfmt already owns.
-    // `restriction` is off as a category, because it bans `async`/`await` and enforces a
-    // .jsx extension. The two rules from it worth having are listed individually below.
-    // The `react-perf` plugin is not enabled either: everything it reports here is an
-    // inline arrow in a JSX prop, and its remedy is useCallback around children that are
-    // not memoised, which costs more than it saves.
+    // `style` is off: oxfmt already owns nearly all of it. `restriction` is off as a
+    // category because it bans `async`/`await`; its two useful rules are listed below.
+    // `react-perf` is off: its remedy is useCallback around children that are not memoised.
   },
   "env": {
     "browser": true,
@@ -37,7 +31,6 @@
   },
   "ignorePatterns": ["dist", "src/routeTree.gen.ts"],
   "rules": {
-    // --- Size and shape ---
     "max-lines": ["error", { "max": 400, "skipBlankLines": true, "skipComments": true }],
     "max-lines-per-function": [
       "error",
@@ -45,7 +38,6 @@
     ],
     "complexity": ["error", 15],
 
-    // --- Escape hatches an agent reaches for when the types get inconvenient ---
     "typescript/no-explicit-any": "error",
     "typescript/no-non-null-assertion": "error",
     // `@ts-ignore` silences an error and forgets it; `@ts-expect-error` fails once the
@@ -54,12 +46,10 @@
       "error",
       { "ts-expect-error": "allow-with-description", "ts-ignore": true, "ts-nocheck": true },
     ],
-    // Exported functions state their return type. An inferred one that is subtly wrong
-    // becomes an error here, at the boundary, instead of somewhere downstream.
+    // An inferred return type that is subtly wrong fails at the boundary, not downstream.
     "typescript/explicit-module-boundary-types": "error",
     "no-console": "error",
 
-    // --- Type-aware: defects ---
     "typescript/no-floating-promises": "error",
     "typescript/no-misused-promises": "error",
     "typescript/await-thenable": "error",
@@ -70,7 +60,6 @@
     "typescript/no-array-delete": "error",
     "typescript/prefer-promise-reject-errors": "error",
 
-    // --- Type-aware: keeping `any` from spreading ---
     "typescript/no-unsafe-assignment": "error",
     "typescript/no-unsafe-call": "error",
     "typescript/no-unsafe-member-access": "error",
@@ -79,11 +68,9 @@
     "typescript/restrict-template-expressions": "error",
     "typescript/prefer-nullish-coalescing": "error",
 
-    // --- Architecture ---
     "import/no-cycle": "error",
-    // Keep in sync with the src/features/*/*.state.ts override below. oxlint replaces
-    // this rule wholesale rather than merging when an override redeclares it, so the
-    // override has to repeat every entry it still wants.
+    // Keep in sync with the src/features/*/*.state.ts override below: an override that
+    // redeclares this rule replaces it wholesale rather than merging.
     "no-restricted-imports": [
       "error",
       {
@@ -103,21 +90,14 @@
       },
     ],
 
-    // --- Relaxed from the categories above, each for a stated reason ---
-    // The automatic JSX runtime (`jsx: "react-jsx"`) means React is never in scope, so
-    // this rule is wrong here. It is 44 of the 47 findings the suspicious category
-    // reports; without this line that category is unusable.
+    // Wrong under the automatic JSX runtime, and 44 of the 47 findings in `suspicious`.
     "react/react-in-jsx-scope": "off",
-    // Side-effect imports are the point at `import './styles/index.css'` and
-    // `import '@testing-library/jest-dom/vitest'`. Both are correct code.
+    // The CSS and jest-dom side-effect imports are correct code.
     "import/no-unassigned-import": "off",
-    // Would require `readonly` on every object and array parameter, React props
-    // included. 13 findings here, none of them a bug. typescript-eslint documents it as
-    // very strict; it buys ceremony rather than safety in an app this shape.
+    // Wants `readonly` on every object parameter, React props included. 13 findings, no bugs.
     "typescript/prefer-readonly-parameter-types": "off",
-    // `onClick={() => step(-1)}` is the normal way to write a handler. Without this
-    // option the rule demands a braced body purely because `step` returns void. The
-    // rest of the rule, which catches a void expression used as a value, stays on.
+    // Without the option, `onClick={() => step(-1)}` needs a braced body just because
+    // `step` returns void. The rest of the rule stays on.
     "typescript/no-confusing-void-expression": ["error", { "ignoreArrowShorthand": true }],
 
     "typescript/no-unused-vars": [
@@ -127,8 +107,8 @@
   },
   "overrides": [
     {
-      // The git hook is a CLI: printing is how it reports, and it runs in Bun where the
-      // process exits on the awaited result, so `return await` is the correct form.
+      // The git hook is a CLI: printing is how it reports, and it exits on the awaited
+      // result, so `return await` is the correct form.
       "files": [".githooks/**/*.ts"],
       "rules": {
         "no-console": "off",
@@ -140,8 +120,7 @@
       "rules": {
         "max-lines-per-function": "off",
         "max-lines": "off",
-        // Test helpers are defined next to the cases that use them, which is clearer
-        // than hoisting them away from their context to satisfy the rule.
+        // Test helpers stay next to the cases that use them.
         "unicorn/consistent-function-scoping": "off",
       },
     },
@@ -153,9 +132,8 @@
       },
     },
     {
-      // The state layer sits at the bottom of a feature: client state must not reach up
-      // into the server-state layer or the transport. Everything above is repeated from
-      // the base config because oxlint replaces this rule rather than merging it.
+      // Client state must not reach up into the server-state layer or the transport. The
+      // base entries are repeated because oxlint replaces the rule rather than merging it.
       "files": ["src/features/*/*.state.ts"],
       "rules": {
         "no-restricted-imports": [

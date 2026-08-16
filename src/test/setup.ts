@@ -2,13 +2,9 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
 
-// Testing Library only registers its own auto-cleanup when Vitest's globals are
-// enabled. They are off here so test files import describe/it/expect explicitly,
-// which means the teardown has to be wired by hand.
+// Testing Library only auto-registers cleanup under Vitest globals, which are off here.
 afterEach(() => {
   cleanup();
-  // A fresh store per test is not enough to isolate atomWithStorage atoms: they
-  // re-read storage in onMount, so whatever the last test persisted would come
-  // back on the next render.
+  // A fresh store is not enough: atomWithStorage atoms re-read storage in onMount.
   localStorage.clear();
 });

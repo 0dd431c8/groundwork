@@ -29,9 +29,7 @@ describe('clamp', () => {
   });
 });
 
-// Atom logic is exercised through the vanilla store, no React involved. Each case
-// seeds countAtom explicitly rather than trusting its initial value, which
-// atomWithStorage reads from localStorage when this module is first evaluated.
+// Each case seeds countAtom: its initial value is read from localStorage at module load.
 describe('counter atoms', () => {
   function storeAt(count: number) {
     const store = createStore();

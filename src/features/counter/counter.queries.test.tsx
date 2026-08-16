@@ -5,8 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchScores, saveScore, type Score } from './counter.api';
 import { scoresQuery, useSaveScore } from './counter.queries';
 
-// The transport is mocked, not the query config: the real queryOptions and the real
-// useSaveScore still run, so what these tests exercise is the production wiring.
+// Only the transport is mocked, so the real query wiring is what gets exercised.
 vi.mock('./counter.api');
 
 const score = (id: string, value: number): Score => ({
@@ -39,8 +38,6 @@ describe('useSaveScore', () => {
     expect(saveScore).toHaveBeenCalledExactlyOnceWith(3);
   });
 
-  // The point of the whole example: a successful save does not push its response into
-  // the cache, it invalidates the key and lets the query refetch from the server.
   it('invalidates the score list on success', async () => {
     const { wrapper } = withClient();
     const { result } = renderHook(() => ({ list: useQuery(scoresQuery), save: useSaveScore() }), {

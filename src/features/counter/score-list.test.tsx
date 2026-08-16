@@ -4,8 +4,7 @@ import { renderWithProviders } from '@/test/render';
 import { fetchScores, type Score } from './counter.api';
 import { ScoreList } from './score-list';
 
-// The transport is mocked, not the query config: counter.queries.ts still builds the
-// real queryOptions, so what these tests exercise is the production wiring.
+// Only the transport is mocked, so the real query wiring is what gets exercised.
 vi.mock('./counter.api');
 
 const score = (id: string, value: number): Score => ({

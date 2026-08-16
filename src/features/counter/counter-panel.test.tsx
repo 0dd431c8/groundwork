@@ -13,8 +13,7 @@ const score = (id: string, value: number): Score => ({
   savedAt: Date.UTC(2026, 7, 16, 9, 0),
 });
 
-// The one test that drives the assembled feature: real components, real useSaveScore,
-// only the transport mocked. Everything narrower is covered by the sibling test files.
+// The assembled feature, only the transport mocked. Sibling files cover the parts.
 describe('<CounterPanel />', () => {
   beforeEach(() => {
     vi.mocked(fetchScores).mockReset().mockResolvedValue([]);

@@ -15,9 +15,7 @@ const score = (id: string, value: number): Score => ({
   savedAt: Date.UTC(2026, 7, 16, 9, 0),
 });
 
-// What saving invalidates is useSaveScore's job and is covered in counter.queries.test.tsx.
-// These cases only cover what the button itself owns: which value it sends, and the
-// pending and error states it renders.
+// What saving invalidates belongs to useSaveScore, covered in counter.queries.test.tsx.
 describe('<SaveScoreButton />', () => {
   beforeEach(() => {
     vi.mocked(fetchScores).mockReset().mockResolvedValue([]);

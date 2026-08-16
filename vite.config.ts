@@ -6,7 +6,6 @@ import tailwindcss from '@tailwindcss/vite';
 // import { visualizer } from "rollup-plugin-visualizer";
 import { resolve } from 'node:path';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     tanstackRouter({
@@ -34,15 +33,12 @@ export default defineConfig({
     cssMinify: 'lightningcss',
     rolldownOptions: {
       output: {
-        // `[\\/]` rather than `/`: module ids use the platform separator, so a
-        // POSIX-only pattern would silently match nothing on Windows.
+        // `[\\/]` rather than `/`: module ids use the platform separator.
         codeSplitting: {
           groups: [
             { name: 'vendor-react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/u },
             { name: 'vendor-tanstack', test: /node_modules[\\/]@tanstack[\\/]/u },
-            // Catch-all, last: groups match in order, so the two above still win. Without
-            // it every newly added package lands in the route chunk and rehashes on each
-            // app edit.
+            // Catch-all last, so a new package lands here instead of in a route chunk.
             { name: 'vendor', test: /node_modules[\\/]/u },
           ],
         },

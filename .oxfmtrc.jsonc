@@ -1,10 +1,8 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "singleQuote": true,
-  // src/components/ui is shadcn CLI output, rewritten verbatim by `bunx shadcn add`.
-  // Linting still applies (see .oxlintrc.jsonc); only formatting is skipped.
-  // The per-agent skills directories are vendored output, rewritten verbatim by
-  // `bunx skills add`. Add a directory here when you install for another agent.
+  // Vendored output, rewritten verbatim by `bunx shadcn add` and `bunx skills add`. Add a
+  // directory here when you install the skills for another agent.
   "ignorePatterns": [
     "dist",
     "src/routeTree.gen.ts",

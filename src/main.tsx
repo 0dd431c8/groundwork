@@ -9,8 +9,7 @@ import { store } from './lib/store';
 
 import './styles/index.css';
 
-// `!` is banned, and it would only have converted a missing #root into a confusing
-// null-deref inside React. Failing here names the actual problem: index.html changed.
+// Throwing here names the problem; `!` would defer it to a null-deref inside React.
 const rootElement = document.querySelector('#root');
 if (!rootElement) throw new Error('No #root element in index.html to mount into.');
 

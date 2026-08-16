@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// The fake server keeps its rows in module state, so each case gets a fresh copy of the
-// module rather than inheriting whatever the previous one saved.
+// The fake server keeps its rows in module state, so each case needs a fresh module.
 function freshApi(): Promise<typeof import('./counter.api')> {
   vi.resetModules();
   return import('./counter.api');
@@ -26,8 +25,6 @@ describe('counter.api', () => {
     const first = await fetchScores();
     const second = await fetchScores();
 
-    // Equal data, different objects: whatever a caller does to one row cannot reach
-    // the stored row or another caller's copy.
     expect(first).toEqual(second);
     expect(first[0]).not.toBe(second[0]);
   });
