@@ -3,6 +3,15 @@
   "singleQuote": true,
   // src/components/ui is shadcn CLI output, rewritten verbatim by `bunx shadcn add`.
   // Linting still applies (see .oxlintrc.jsonc); only formatting is skipped.
-  // .claude/skills is vendored agent-skill output, rewritten verbatim by `bunx skills add`.
-  "ignorePatterns": ["dist", "src/routeTree.gen.ts", "src/components/ui", ".claude"],
+  // The per-agent skills directories are vendored output, rewritten verbatim by
+  // `bunx skills add`. Add a directory here when you install for another agent.
+  "ignorePatterns": [
+    "dist",
+    "src/routeTree.gen.ts",
+    "src/components/ui",
+    ".agents",
+    ".claude",
+    ".roo",
+    ".windsurf",
+  ],
 }

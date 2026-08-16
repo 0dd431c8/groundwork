@@ -77,6 +77,24 @@ Context to share values, and don't lift state up through props just to share it.
 - `.oxfmtrc.jsonc` skips the directory for formatting. `.oxlintrc.jsonc` still lints it, with
   only the `useEffect` import ban lifted.
 
+## Agent skills
+
+The `jotai` skill from `jotaijs/jotai-skills` is committed so every contributor gets the same
+Jotai guidance regardless of which agent they run. Treat it as vendored, like
+`src/components/ui`:
+
+- `.agents/skills/jotai/` is the shared copy most agents read, including Claude Code, Codex,
+  Cursor, OpenCode and Warp. Windsurf and Roo insist on their own directories, so
+  `.windsurf/skills/` and `.roo/skills/` hold identical copies, as does `.claude/skills/`.
+- Install for another agent with
+  `bunx skills add jotaijs/jotai-skills --copy -y --skill jotai --agent <name> ...`. The flag
+  is variadic, so separate names with spaces, not commas. `bunx skills add --help` lists all 71
+  valid agent names.
+- Add any new agent directory to `ignorePatterns` in `.oxfmtrc.jsonc`. Upstream formatting
+  differs from this repo's, and the pre-commit hook would otherwise rewrite the files.
+- `skills-lock.json` pins the resolved skill. `bunx skills update` upgrades it; don't hand-edit
+  the skill files, since a reinstall overwrites them.
+
 ## Git hooks
 
 `bun install` points `core.hooksPath` at `.githooks/`. The pre-commit hook formats (`oxfmt`)
