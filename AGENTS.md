@@ -171,8 +171,47 @@ it does nothing for link previews.
   tokens live in `@theme inline` in `src/styles/index.css`.
 - Vendor chunking is set in `vite.config.ts` under `build.rolldownOptions.output.codeSplitting`.
   Groups match in order and the last one is a `node_modules` catch-all, so new packages land
-  in a long-lived vendor chunk rather than in route chunks.
-- Path alias `@/*` maps to `src/*`, declared in both `tsconfig.json` and `vite.config.ts`.
+  in a long-lived vendor chunk rather than in route chunks. The groups are deliberately
+  untagged: Rolldown's `tags: ['$initial']` scopes a group to what the entry reaches
+  statically, and since `autoCodeSplitting` makes every route a dynamic import, adding it
+  moved 47 kB (jotai, base-ui, cva, clsx, tailwind-merge) out of the preloaded vendor chunks
+  and into `routes-*.js`, which rehashes whenever any route component changes. Same total
+  bytes, worse caching. If one route ever owns a genuinely heavy dependency, give that
+  package its own group instead.
+- Path alias `@/*` is declared once, in `tsconfig.json` under `paths`. Both `vite.config.ts`
+  and `vitest.config.ts` read it via `resolve.tsconfigPaths` (Vite 8, off by default) rather
+  than repeating a `resolve.alias`. It only applies to files the owning tsconfig `include`s,
+  which is `src` - the same reason tooling files can't use `@/...`.
+- `build.target` is left at Vite's `baseline-widely-available` default. That is fixed per Vite
+  major, currently 2026-01-01, resolving to chrome111, edge111, firefox114, safari16.4 and
+  ios16.4. A Vite 9 upgrade will raise it silently, so pin `build.target` if the support
+  matrix ever becomes a commitment. `modulePreload` stays on for the same reason: firefox114
+  and safari16.4 have no `<link rel="modulepreload">`.
+- Source maps are not emitted. `sourcemap: 'hidden'` only drops the `//# sourceMappingURL`
+  comment, so it still writes the maps and any deploy of `dist/` publishes them at a guessable
+  URL. Turn it on only together with a deploy step that uploads them to an error tracker and
+  then deletes `dist/**/*.map`.
+- For bundle analysis, `bun add -D @vitejs/devtools` and set `devtools: true` (build mode
+  only, experimental). `rollup-plugin-visualizer` is a Rollup plugin and does not apply.
+- The local `brotli()` plugin in `vite.config.ts` writes a `.br` beside every asset matching
+  `PRECOMPRESS` that is at least `MIN_BYTES`, then prints a raw-to-compressed table. On this
+  bundle that is 105.5 kB against 384.3 kB uncompressed. `node:zlib` already does brotli, so
+  this is a `closeBundle` hook rather than a dependency; `vite-plugin-compression2` was tried
+  first and dropped, because it emits through `this.emitFile` and there is no option to keep
+  the `.br` files out of Vite's own asset listing, where they sort by size in among the
+  originals they duplicate.
+- Three constants there are load-bearing. `PRECOMPRESS` is an allowlist rather than a woff2
+  denylist: woff2 is already brotli inside, so the font subsets come back a few bytes
+  _larger_, and they are 440 kB of `dist/assets/`. `MIN_BYTES` is one MTU, under which a
+  smaller file still costs the same single round trip. And the hook is `closeBundle`, which
+  is the part that runs after Vite has printed.
+- `build.reportCompressedSize` is off. It made Vite gzip every chunk to print a column for a
+  compression this build does not ship, and the table above replaces it. It cost about 18ms
+  of a 170ms build, so speed was not the reason.
+- The server still has to be told to prefer the `.br`: nginx wants `brotli_static on`, Caddy
+  `precompressed br`, S3 behind CloudFront wants the object metadata. Netlify and Vercel
+  compress on the fly and never serve a sibling `.br`, and Cloudflare will not fetch one from
+  an origin, so on those three the files are inert rather than harmful.
 
 ## shadcn components
 
@@ -313,7 +352,8 @@ with the dev server.
   `Storage` never gets installed (vitest-dev/vitest#8757).
 - `vitest.config.ts` is standalone and does not merge `vite.config.ts`: that config constructs
   the tanstackRouter plugin, which rewrites the committed `src/routeTree.gen.ts` as a side
-  effect. It duplicates the `@` alias instead, so keep the two in sync.
+  effect. It repeats `resolve.tsconfigPaths`, which is one flag rather than an alias the two
+  files would have to keep in sync.
 - Globals are off. Import `describe`/`it`/`expect` from `vitest` in every test file. This
   avoids adding `vitest/globals` to the `types` array in `tsconfig.json`.
 - `src/test/setup.ts` loads the `@testing-library/jest-dom` matchers and calls `cleanup` in an
