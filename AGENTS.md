@@ -68,10 +68,17 @@ response to `setState` or to a `set(...)`.
 
 - `src/features/counter/save-score-button.tsx` is where the two layers meet, and is the
   clearest thing to read first: the value being saved comes from `countAtom`, the saved list
-  comes from the query cache, and `onSuccess` only invalidates.
+  comes from the query cache, and nothing copies one into the other.
 - Define queries with `queryOptions` in `<feature>.queries.ts`, exporting the key separately
   (`scoresKey`) so the definition and every `invalidateQueries` call cannot drift apart. Pass
   the whole object to `useQuery(scoresQuery)`.
+- Mutations get a custom hook in the same file (`useSaveScore`), never an inline `useMutation`
+  in a component. What a mutation invalidates is a fact about the data, not about the widget
+  that triggered it, so a component should never name a query key. Keep `onSuccess` on the hook
+  options rather than on the `mutate()` call: callbacks passed to `mutate()` are dropped if the
+  caller unmounts before the request settles, so navigating away mid-save would skip the
+  invalidation. One `useMutation` per call site is deliberate, since that is what gives each
+  caller its own `isPending`; sharing it would need a `mutationKey` and `useMutationState`.
 - Keep the transport in `<feature>.api.ts` with no React Query import. Tests
   `vi.mock('./counter.api')` to control it while the real `queryOptions` still runs, so what is
   under test is the production query wiring. Merging the two files would mean mocking the query

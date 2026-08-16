@@ -1,5 +1,5 @@
-import { queryOptions } from '@tanstack/react-query';
-import { fetchScores } from './counter.api';
+import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchScores, saveScore } from './counter.api';
 
 export const scoresKey = ['scores'] as const;
 
@@ -13,7 +13,29 @@ export const scoresKey = ['scores'] as const;
  */
 export const scoresQuery = queryOptions({
   queryKey: scoresKey,
-  // Wrapped rather than `queryFn: fetchScores`: React Query calls the query function
-  // with a context object, and the transport should not quietly receive it.
+  // Wrapped rather than `queryFn: fetchScores`: React Query calls query and mutation
+  // functions with a context object, and the transport should not quietly receive it.
+  // Same reason for the arrow in useSaveScore below.
   queryFn: () => fetchScores(),
 });
+
+/**
+ * Saving a score makes the score list stale. That is a fact about the data, not about
+ * whatever widget triggered the save, so it lives here rather than in a component - any
+ * other trigger we add later gets the invalidation for free instead of copying it.
+ *
+ * `onSuccess` belongs on these options rather than on the `mutate()` call: callbacks
+ * passed to `mutate()` are dropped if the caller unmounts before the request settles,
+ * so navigating away mid-save would skip the invalidation.
+ *
+ * Still one `useMutation` per call site, which is what gives each caller its own
+ * `isPending`. Sharing that would need a `mutationKey` and `useMutationState`.
+ */
+export function useSaveScore() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (value: number) => saveScore(value),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: scoresKey }),
+  });
+}
