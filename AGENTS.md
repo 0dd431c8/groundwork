@@ -70,8 +70,22 @@ Bypass with `git commit --no-verify`.
 
 ## Testing
 
-`package.json` declares `"test": "vitest"` and `"e2e": "playwright test"`, but neither
-`vitest` nor `@playwright/test` is installed yet, so both scripts currently fail. Install the
-one you need before writing tests, and prefer it over `bun test`: the app code imports
+Vitest with jsdom and Testing Library. Prefer it over `bun test`: the app code imports
 `.tsx`, CSS, and the `@/*` alias, which need the Vite transform pipeline that Vitest shares
 with the dev server.
+
+- `bun run test` (watch), `bun run test:ui` (`@vitest/ui` dashboard), `bun run test:coverage`
+  (v8 provider, report in `coverage/`). CI should call `bunx vitest run`.
+- Tests are colocated: `src/**/*.test.{ts,tsx}`. `src/lib/counter.ts` +
+  `src/components/counter.tsx` and their tests are the worked example of both layers.
+- `vitest.config.ts` is standalone and does not merge `vite.config.ts`: that config constructs
+  the tanstackRouter plugin, which rewrites the committed `src/routeTree.gen.ts` as a side
+  effect. It duplicates the `@` alias instead, so keep the two in sync.
+- Globals are off. Import `describe`/`it`/`expect` from `vitest` in every test file. This
+  avoids adding `vitest/globals` to the `types` array in `tsconfig.json`.
+- `src/test/setup.ts` loads the `@testing-library/jest-dom` matchers and calls `cleanup` in an
+  `afterEach`, which Testing Library would otherwise register itself only under globals.
+- `.oxlintrc.jsonc` exempts `src/**/*.test.{ts,tsx}` and `src/test/**` from `max-lines` and
+  `max-lines-per-function`.
+- `"e2e": "playwright test"` is still declared without `@playwright/test` installed, so that
+  script fails until someone adds it.

@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { Counter } from '@/components/counter';
 import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/')({
@@ -8,7 +8,7 @@ export const Route = createFileRoute('/')({
 function Home() {
   return (
     <div className="min-h-dvh flex items-center justify-center">
-      <Button onClick={() => alert('Hello!')}>Hello, World!</Button>
+      <Counter />
     </div>
   );
 }
