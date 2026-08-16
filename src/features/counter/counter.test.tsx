@@ -2,13 +2,13 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createStore } from 'jotai';
 import { describe, expect, it } from 'vitest';
-import { renderWithStore } from '@/test/render';
+import { renderWithProviders } from '@/test/render';
 import { Counter } from './counter';
 import { countAtom, MAX_COUNT, MIN_COUNT } from './counter.state';
 
 describe('<Counter />', () => {
   it('starts at the minimum with decrement disabled', () => {
-    renderWithStore(<Counter />);
+    renderWithProviders(<Counter />);
 
     expect(screen.getByRole('status')).toHaveTextContent(String(MIN_COUNT));
     expect(screen.getByRole('button', { name: 'Decrement' })).toBeDisabled();
@@ -17,7 +17,7 @@ describe('<Counter />', () => {
 
   it('counts up and back down', async () => {
     const user = userEvent.setup();
-    renderWithStore(<Counter />);
+    renderWithProviders(<Counter />);
 
     const increment = screen.getByRole('button', { name: 'Increment' });
     await user.click(increment);
@@ -33,7 +33,7 @@ describe('<Counter />', () => {
     const user = userEvent.setup();
     const store = createStore();
     store.set(countAtom, MAX_COUNT - 1);
-    renderWithStore(<Counter />, { store });
+    renderWithProviders(<Counter />, { store });
 
     const increment = screen.getByRole('button', { name: 'Increment' });
     await user.click(increment);
@@ -46,7 +46,7 @@ describe('<Counter />', () => {
   it('restores the persisted count', () => {
     localStorage.setItem('counter:count', '3');
 
-    renderWithStore(<Counter />);
+    renderWithProviders(<Counter />);
 
     expect(screen.getByRole('status')).toHaveTextContent('3');
     expect(screen.getByRole('button', { name: 'Decrement' })).toBeEnabled();
@@ -54,7 +54,7 @@ describe('<Counter />', () => {
 
   it('persists what the user counted to', async () => {
     const user = userEvent.setup();
-    renderWithStore(<Counter />);
+    renderWithProviders(<Counter />);
 
     await user.click(screen.getByRole('button', { name: 'Increment' }));
 

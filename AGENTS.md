@@ -23,7 +23,9 @@ runner; it is not the server or the bundler.
 - `src/routes/` holds TanStack Router file-based routes. `src/routeTree.gen.ts` is generated
   by `@tanstack/router-plugin` and committed; never edit it by hand.
 - `src/features/<name>/` holds everything that belongs to one feature: state, components and
-  their tests, side by side. `src/features/counter/` is the worked example.
+  their tests, side by side. `src/features/counter/` is the worked example. Files are named
+  `<feature>.state.ts` (atoms), `<feature>.api.ts` (transport), `<feature>.queries.ts` (React
+  Query definitions), and one `.tsx` per component with its `.test.tsx` beside it.
 - `src/lib/` is infrastructure and app-agnostic helpers only: the singletons `main.tsx` wires
   up (`router.ts`, `query-client.ts`, `store.ts`) and generic utilities (`utils.ts`). Feature
   code does not go here. If a module names a feature, it belongs in `src/features/`.
@@ -52,10 +54,36 @@ Context to share values, and don't lift state up through props just to share it.
   needs both, since it subscribes the component to the value.
 - Persist with `atomWithStorage` from `jotai/utils`. Pass `{ getOnInit: true }` or the first
   render shows the initial value and corrects itself on mount.
-- Deliberately not installed: `jotai-devtools` (drags in the whole Mantine UI kit),
+- Deliberately not installed: `jotai-devtools` (drags in the whole Mantine UI kit) and
   `jotai-babel` (`@vitejs/plugin-react` v6 is Oxc-based and dropped its `babel` option, so it
   would cost `@rolldown/plugin-babel` plus five more packages and a second transform pass over
-  every file), and `jotai-tanstack-query` (React Query is already wired directly).
+  every file).
+
+## Server state
+
+React Query owns anything that came from a server. The rule that matters: server data never
+gets copied into an atom, and ephemeral UI state never gets parked in the query cache. When a
+mutation changes server data, invalidate the key and let the query refetch; do not hand the
+response to `setState` or to a `set(...)`.
+
+- `src/features/counter/save-score-button.tsx` is where the two layers meet, and is the
+  clearest thing to read first: the value being saved comes from `countAtom`, the saved list
+  comes from the query cache, and `onSuccess` only invalidates.
+- Define queries with `queryOptions` in `<feature>.queries.ts`, exporting the key separately
+  (`scoresKey`) so the definition and every `invalidateQueries` call cannot drift apart. Pass
+  the whole object to `useQuery(scoresQuery)`.
+- Keep the transport in `<feature>.api.ts` with no React Query import. Tests
+  `vi.mock('./counter.api')` to control it while the real `queryOptions` still runs, so what is
+  under test is the production query wiring. Merging the two files would mean mocking the query
+  config too.
+- Wrap the call: `queryFn: () => fetchScores()`, not `queryFn: fetchScores`. React Query passes
+  a context object into query and mutation functions, and a bare reference means the transport
+  silently receives it.
+- `src/lib/query-client.ts` is left on the library defaults on purpose, including `staleTime: 0`,
+  so refetch-on-focus is visible in the devtools rather than a mystery later.
+- `jotai-tanstack-query` is deliberately not installed. Plain `useQuery`/`useMutation` next to
+  plain atoms is what keeps the boundary above legible. The thing that would justify adopting it
+  is a derived atom that has to read server data; until an atom needs that, it buys nothing.
 
 ## Build and tooling
 
@@ -132,10 +160,15 @@ with the dev server.
   crossing out of it. That way a feature folder can be renamed or moved without editing its
   own internals. The state module is `<feature>.state.ts` rather than `<feature>.ts` so that
   `./counter` never has to be disambiguated from `counter.tsx` by extension-resolution order.
-- `src/test/render.tsx` exports `renderWithStore`, which wraps the tree in a `Provider` over a
-  store created per call. To start from a specific state, build the store yourself, seed it
-  with `store.set(...)`, and pass it in - that is the same write path production code uses, so
+- `src/test/render.tsx` exports `renderWithProviders`, which mirrors `main.tsx`: a
+  `QueryClientProvider` and a Jotai `Provider`, each over an instance created per call, both
+  overridable. To start from a specific state, build the store yourself, seed it with
+  `store.set(...)`, and pass it in - that is the same write path production code uses, so
   `useHydrateAtoms` is not needed here.
+- The test `QueryClient` sets `retry: false`. Without it, any test of an error branch waits out
+  three retries with exponential backoff and fails as a timeout rather than an assertion.
+- Mock the feature's `.api.ts` with `vi.mock`, never the query definitions. `vi` has to be
+  imported explicitly, like `describe`/`it`/`expect`, since globals are off.
 - `src/test/setup.ts` also clears `localStorage` after each test. A fresh store alone does not
   isolate `atomWithStorage` atoms, because they re-read storage in `onMount`.
 - `test.execArgv` in `vitest.config.ts` passes `--no-webstorage`. Node 25 defines a global
