@@ -6,7 +6,7 @@ import sharp, { type Sharp } from 'sharp';
 import { optimize as optimizeSvg } from 'svgo';
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
-import { promisify } from 'node:util';
+import { type InspectColor, promisify, styleText } from 'node:util';
 import { brotliCompress } from 'node:zlib';
 
 const compress = promisify(brotliCompress);
@@ -56,6 +56,90 @@ const sum = <T>(rows: readonly T[], pick: (r: T) => number): number =>
 const bucketOf = (name: string): string =>
   BUCKETS.find(([, test]) => test.test(name))?.[0] ?? 'other';
 
+// `styleText` inspects process.stdout itself - TTY, NO_COLOR, FORCE_COLOR, TERM=dumb - and hands
+// the string back untouched when colour is unwanted, so a build piped into a log file needs no
+// flag. Node and Bun both have it, which is why this is not a picocolors dependency.
+type Paint = (s: string) => string;
+
+const paint =
+  (...format: InspectColor[]): Paint =>
+  (s) =>
+    styleText(format, s);
+
+const plain: Paint = (s) => s;
+const dim = paint('dim');
+const bold = paint('bold');
+
+// Keyed by bucket, so one map covers both the filenames and the bucket rows in `dist/ total`.
+// Green is missing on purpose: it is what the size column uses to mean "this shrank".
+const TINTS: Record<string, Paint> = {
+  js: paint('cyan'),
+  css: paint('magenta'),
+  fonts: paint('yellow'),
+  images: paint('blue'),
+};
+
+const tintOf = (bucket: string): Paint => TINTS[bucket] ?? plain;
+
+/** How a row's two size columns are painted. `gain` applies only when the file got smaller. */
+type Style = { size: Paint; gain: Paint };
+const DATA: Style = { size: dim, gain: paint('green') };
+const TOTAL: Style = { size: bold, gain: paint('bold', 'green') };
+
+// Vite names an asset `[name]-[hash]` with an 8-character base64url hash. A name that happens to
+// end in an 8-character suffix gets dimmed for nothing, which costs a shade and nothing else.
+const HASH = /-[\w-]{8}(?=\.[^.]*$)/u;
+
+// Dimming the directory and the hash leaves the part of the name that identifies the file.
+function decorate(name: string, tint: Paint): string {
+  const cut = name.lastIndexOf('/') + 1;
+  const dir = cut === 0 ? '' : dim(name.slice(0, cut));
+  const base = name.slice(cut);
+  const hash = HASH.exec(base);
+  if (!hash) return dir + tint(base);
+  const [end, text] = [hash.index + hash[0].length, hash[0]];
+  return dir + tint(base.slice(0, hash.index)) + dim(text) + tint(base.slice(end));
+}
+
+const pct = (before: number, after: number): string => {
+  const change = before === 0 ? 0 : Math.round(((after - before) / before) * 100);
+  return `${String(change)}%`.padStart(5);
+};
+
+type Line = { name: string; tint: Paint; before: number; after: number };
+
+// A row stays in `style.size` when nothing shrank, so `fonts 530.58 kB → 530.58 kB` and an
+// already-optimised image say so by staying dim rather than needing a column to explain it.
+const row = (label: string, before: number, after: number, style: Style): string =>
+  `  ${label} ${style.size(kB(before))} ${dim('→')} ${(after < before ? style.gain : style.size)(kB(after))} ${style.size(pct(before, after))}`;
+
+// One renderer for all three tables below: they are the same shape, so the padding arithmetic and
+// the palette only have to be right once. Widths are measured on the plain name and never on the
+// decorated one, since `padEnd` counts escape bytes as characters and would shift every column
+// right by the width of that row's own colour codes.
+// `count` defaults to one file per line, which is wrong for a table whose lines are buckets:
+// `dist/ total` has five rows standing for 22 files, and the label has to say 22.
+function table(
+  logger: Logger,
+  title: string,
+  note: string,
+  lines: readonly Line[],
+  count = lines.length,
+): void {
+  if (lines.length === 0) return;
+  const total = files(count);
+  const width = Math.max(...lines.map((l) => l.name.length), total.length);
+
+  logger.info(`\n${bold(title)}${note === '' ? '' : ` ${dim(note)}`}`);
+  for (const l of lines) {
+    logger.info(
+      row(decorate(l.name, l.tint) + ' '.repeat(width - l.name.length), l.before, l.after, DATA),
+    );
+  }
+  const [before, after] = [sum(lines, (l) => l.before), sum(lines, (l) => l.after)];
+  logger.info(row(bold(total.padEnd(width)), before, after, TOTAL));
+}
+
 // Reads only what it compresses: the 440 kB of font subsets are stat'd, never loaded.
 async function measure(outDir: string, name: string): Promise<Row | null> {
   const path = join(outDir, name);
@@ -72,38 +156,24 @@ async function measure(outDir: string, name: string): Promise<Row | null> {
 function logPrecompressed(logger: Logger, outDir: string, rows: readonly Row[]): void {
   const written = rows
     .filter((r): r is Compressed => r.br !== null)
-    .toSorted((a, b) => b.br - a.br);
-  if (written.length === 0) return;
+    .toSorted((a, b) => b.br - a.br)
+    .map((r) => ({ name: r.name, tint: tintOf(bucketOf(r.name)), before: r.raw, after: r.br }));
 
-  const width = Math.max(...written.map((r) => r.name.length));
-  logger.info(`\nbrotli (${outDir}/, ${String(MIN_BYTES)} bytes and up)`);
-  for (const r of written) {
-    logger.info(`  ${r.name.padEnd(width)} ${kB(r.raw)} → ${kB(r.br)}`);
-  }
-  const label = files(written.length).padEnd(width);
-  logger.info(`  ${label} ${kB(sum(written, (r) => r.raw))} → ${kB(sum(written, (r) => r.br))}`);
+  table(logger, 'brotli', `(${outDir}/, ${String(MIN_BYTES)} bytes and up)`, written);
 }
 
 // What the deploy actually weighs: every file counted once, at the size a server sends it.
 function logTotal(logger: Logger, outDir: string, rows: readonly Row[]): void {
-  if (rows.length === 0) return;
-  const total = files(rows.length);
-
   const lines = [...Map.groupBy(rows, (r) => bucketOf(r.name))]
     .map(([bucket, group]) => ({
-      bucket,
-      raw: sum(group, (r) => r.raw),
-      out: sum(group, (r) => transfer(r)),
+      name: bucket,
+      tint: tintOf(bucket),
+      before: sum(group, (r) => r.raw),
+      after: sum(group, (r) => transfer(r)),
     }))
-    .toSorted((a, b) => b.out - a.out);
+    .toSorted((a, b) => b.after - a.after);
 
-  const width = Math.max(...lines.map((l) => l.bucket.length), total.length);
-  logger.info(`\n${outDir}/ total`);
-  for (const l of lines) {
-    logger.info(`  ${l.bucket.padEnd(width)} ${kB(l.raw)} → ${kB(l.out)}`);
-  }
-  const out = sum(rows, (r) => transfer(r));
-  logger.info(`  ${total.padEnd(width)} ${kB(sum(rows, (r) => r.raw))} → ${kB(out)}`);
+  table(logger, `${outDir}/ total`, '', lines, rows.length);
 }
 
 type Shrunk = { name: string; before: number; after: number };
@@ -134,17 +204,16 @@ async function shrink(outDir: string, name: string): Promise<Shrunk | null> {
 }
 
 function logImages(logger: Logger, outDir: string, rows: readonly Shrunk[]): void {
-  if (rows.length === 0) return;
-  const shrunk = rows.toSorted((a, b) => b.after - a.after);
-  const total = files(shrunk.length);
+  const shrunk = rows
+    .toSorted((a, b) => b.after - a.after)
+    .map((r) => ({
+      name: r.name,
+      tint: tintOf(bucketOf(r.name)),
+      before: r.before,
+      after: r.after,
+    }));
 
-  const width = Math.max(...shrunk.map((r) => r.name.length), total.length);
-  logger.info(`\nimages (${outDir}/)`);
-  for (const r of shrunk) {
-    logger.info(`  ${r.name.padEnd(width)} ${kB(r.before)} → ${kB(r.after)}`);
-  }
-  const [before, after] = [sum(shrunk, (r) => r.before), sum(shrunk, (r) => r.after)];
-  logger.info(`  ${total.padEnd(width)} ${kB(before)} → ${kB(after)}`);
+  table(logger, 'images', `(${outDir}/)`, shrunk);
 }
 
 // The work is in `writeBundle` because every `writeBundle` resolves before any

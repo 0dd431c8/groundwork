@@ -276,6 +276,19 @@ it does nothing for link previews.
   `stat`s every file and reads only the ones it compresses, so those fonts are never loaded
   into memory. Both tables come out of that one walk, which is why this is one plugin and not
   two.
+- All three tables render through one `table()` helper, because they are the same shape and the
+  padding arithmetic only has to be right once. Colour comes from `styleText` in `node:util`,
+  not `picocolors`: it inspects `process.stdout` itself for TTY, `NO_COLOR`, `FORCE_COLOR` and
+  `TERM=dumb`, and returns the string untouched when colour is unwanted, so a build piped into a
+  log file stays plain with no flag to remember. Node and Bun both implement it, so like
+  `node:zlib` above it costs no dependency. Filenames tint by the same bucket `dist/ total`
+  groups on (js cyan, css magenta, fonts yellow, images blue), matching Vite's own asset
+  listing; green is reserved for the output column and appears only when a file actually got
+  smaller, which is what makes `fonts 530.58 kB → 530.58 kB` legible as a no-op without a column
+  saying so. The one trap when editing this: column widths must be measured on the plain string,
+  since `padEnd` counts escape bytes as characters and would shift every row by the width of its
+  own colour codes. Verify a change by diffing a run under `script -q /dev/null` with the escapes
+  stripped against a plain piped run; they must be identical.
 - The `images()` plugin re-encodes every png, jpeg, webp, avif and svg in `dist/` in place, and
   prints the same shape of table above the other two. sharp does the rasters (`quality: 80`,
   mozjpeg for jpeg, `palette: true` for png, which is the quantisation that does the real work)
