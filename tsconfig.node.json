@@ -12,6 +12,7 @@
     "types": ["bun"]
   },
   // A glob, so a vitest.config.ts or playwright.config.ts is covered the day it appears.
-  "include": ["*.config.ts", ".githooks/**/*.ts"],
+  // `build/` is the Vite plugins vite.config.ts imports, tests included.
+  "include": ["*.config.ts", ".githooks/**/*.ts", "build/**/*.ts"],
   "references": []
 }

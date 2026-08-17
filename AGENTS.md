@@ -27,6 +27,10 @@ runner; it is not the server or the bundler.
   `src/` instead, so it gets hashed and revved. Names survive the copy but bytes do not:
   `images()` re-encodes anything it recognises, here and in `dist/assets/` alike. See "Build
   and tooling".
+- `build/` is the build-time code `vite.config.ts` imports, so the config itself stays a list
+  of options: `report.ts` draws the three tables, `brotli.ts` and `images.ts` are the two local
+  plugins. It is Node code, tested under its own Vitest project against a temporary `dist/`.
+  See "Build and tooling" and "Testing".
 - `src/main.tsx` mounts React and wires the router and the React Query client.
 - `src/routes/` holds TanStack Router file-based routes. `src/routeTree.gen.ts` is generated
   by `@tanstack/router-plugin` and committed; never edit it by hand.
@@ -219,11 +223,14 @@ it does nothing for link previews.
 
 - `bun run dev` starts Vite. `bun run build` runs `tsc -b` then `vite build`.
 - Two TypeScript projects: `tsconfig.json` covers `src`, and `tsconfig.node.json` (which
-  extends it) covers `*.config.ts` and `.githooks/`. Build mode is what checks both, so use
-  `tsc -b`; plain `tsc` silently skips the referenced project. `tsconfig.node.json` must
+  extends it) covers `*.config.ts`, `.githooks/` and `build/`. Build mode is what checks both,
+  so use `tsc -b`; plain `tsc` silently skips the referenced project. `tsconfig.node.json` must
   emit (TS7 forbids `noEmit` on a referenced project), so it emits declarations only, into
   `node_modules/.tmp/`. Tooling files can't import from `src`: a composite project has to
   list every input file, so `@/...` there fails with TS6307.
+- Everything `vite.config.ts` reaches carries an explicit `.ts` on the import, unlike `src`.
+  Vite's config loader has a `native` mode, planned to become the default, that does not
+  resolve an extensionless import; today it only warns, and the warning names the line.
 - Tailwind v4 is configured through `@tailwindcss/vite`, not a `tailwind.config.js`. Theme
   tokens live in `@theme inline` in `src/styles/index.css`.
 - That file imports Tailwind as `@import 'tailwindcss' source(none)` and then names its sources
@@ -261,7 +268,7 @@ it does nothing for link previews.
   then deletes `dist/**/*.map`.
 - For bundle analysis, `bun add -D @vitejs/devtools` and set `devtools: true` (build mode
   only, experimental). `rollup-plugin-visualizer` is a Rollup plugin and does not apply.
-- The local `brotli()` plugin in `vite.config.ts` writes a `.br` beside every asset matching
+- The local `brotli()` plugin in `build/brotli.ts` writes a `.br` beside every asset matching
   `PRECOMPRESS` that is at least `MIN_BYTES`, then prints a raw-to-compressed table. On this
   bundle that is 119.6 kB against 443.7 kB uncompressed. `node:zlib` already does brotli, so
   this is a `closeBundle` hook rather than a dependency; `vite-plugin-compression2` was tried
@@ -276,8 +283,8 @@ it does nothing for link previews.
   `stat`s every file and reads only the ones it compresses, so those fonts are never loaded
   into memory. Both tables come out of that one walk, which is why this is one plugin and not
   two.
-- All three tables render through one `table()` helper, because they are the same shape and the
-  padding arithmetic only has to be right once. Colour comes from `styleText` in `node:util`,
+- All three tables render through the one `table()` in `build/report.ts`, because they are the
+  same shape and the padding arithmetic only has to be right once. Colour comes from `styleText` in `node:util`,
   not `picocolors`: it inspects `process.stdout` itself for TTY, `NO_COLOR`, `FORCE_COLOR` and
   `TERM=dumb`, and returns the string untouched when colour is unwanted, so a build piped into a
   log file stays plain with no flag to remember. Node and Bun both implement it, so like
@@ -287,14 +294,16 @@ it does nothing for link previews.
   smaller, which is what makes `fonts 530.58 kB → 530.58 kB` legible as a no-op without a column
   saying so. The one trap when editing this: column widths must be measured on the plain string,
   since `padEnd` counts escape bytes as characters and would shift every row by the width of its
-  own colour codes. Verify a change by diffing a run under `script -q /dev/null` with the escapes
-  stripped against a plain piped run; they must be identical.
-- The `images()` plugin re-encodes every png, jpeg, webp, avif and svg in `dist/` in place, and
-  prints the same shape of table above the other two. sharp does the rasters (`quality: 80`,
-  mozjpeg for jpeg, `palette: true` for png, which is the quantisation that does the real work)
-  and svgo the svg. It rewrites a file only when the result is smaller, so an already-optimised
-  jpeg is left alone and a second pass over the same `dist/` is a no-op. Measured on fixtures:
-  67% off a 5.8 MB noise png, 72% off a 2.4 MB jpeg, and `icon.svg` 447 bytes to 224.
+  own colour codes. `build/report.test.ts` asserts exactly that, by rendering the same rows twice
+  and comparing the stripped colour run to the plain one; for the real build, diff a run under
+  `script -q /dev/null` with the escapes stripped against a plain piped run.
+- The `images()` plugin in `build/images.ts` re-encodes every png, jpeg, webp, avif and svg in
+  `dist/` in place, and prints the same shape of table above the other two. sharp does the
+  rasters (`quality: 80`, mozjpeg for jpeg, `palette: true` for png, which is the quantisation
+  that does the real work) and svgo the svg. It rewrites a file only when the result is smaller,
+  so an already-optimised jpeg is left alone and a second pass over the same `dist/` is a no-op.
+  Measured on fixtures: 67% off a 5.8 MB noise png, 72% off a 2.4 MB jpeg, and `icon.svg` 447
+  bytes to 224.
 - Two lines in it are load-bearing. `sharp(raw).autoOrient()` has to come first, because
   `toBuffer()` strips all metadata including the EXIF orientation tag, so without it a phone
   photo ships rotated: verified with a fixture tagged `Orientation: 6`, which comes out
@@ -436,9 +445,10 @@ with the dev server.
 
 - `bun run test` (watch), `bun run test:ui` (`@vitest/ui` dashboard), `bun run test:coverage`
   (v8 provider, report in `coverage/`). CI should call `bun run check`.
-- Coverage thresholds are set to 90 across the board. The suite is at 100% once wiring is
-  excluded from `coverage.include` (the mount call, the three `src/lib` singletons, the route
-  files, feature `index.ts` barrels: all exercised only by a real browser). Treat this as a
+- Coverage thresholds are set to 90 across the board, over `src` and `build` alike. The suite is
+  at 100% once wiring is excluded from `coverage.include` (the mount call, the three `src/lib`
+  singletons, the route files, feature `index.ts` barrels: all exercised only by a real browser;
+  and `build/test/**`, which is the harness rather than the thing under test). Treat this as a
   floor against a feature landing with no tests at all, not as a quality bar, since an
   assertion-free test satisfies it just as well. Raise it, never quietly lower it, and if
   something genuinely untestable drags it down, exclude that file with a reason rather than
@@ -446,6 +456,18 @@ with the dev server.
 - Tests are colocated: `src/**/*.test.{ts,tsx}`, next to the file under test inside the
   feature. `src/features/counter/` is the worked example of both layers: atom logic is driven
   through a bare `createStore()` with no React, component behaviour through Testing Library.
+- Two Vitest projects, `app` and `build`, because they share nothing but the runner: `app` is
+  jsdom plus the React plugin and `src/test/setup.ts`, `build` is `build/**/*.test.ts` under
+  plain node with no setup at all. `setupFiles` is per-project and not per-file, so a single
+  project would run `cleanup()` and `localStorage.clear()` against a Node test and throw. Run
+  one on its own with `vitest --project build`.
+- The `build` tests drive the plugins the way Vite does: `build/test/harness.ts` calls
+  `configResolved` with a stub carrying the only two fields they read, then the test awaits
+  `writeBundle`/`closeBundle` itself against a temporary directory that stands in for `dist/`.
+  Fixtures are generated by sharp at run time rather than committed, so there are no binaries
+  in the repo and an encoder change shows up as a size assertion rather than a stale file.
+  `useColor()` there pins `NO_COLOR`/`FORCE_COLOR`, since `styleText` reads the environment on
+  every call and a table would otherwise assert differently under a TTY than in CI.
 - Within a feature, import relatively (`./counter.state`); reach for the `@/*` alias only when
   crossing out of it. That way a feature folder can be renamed or moved without editing its
   own internals. The state module is `<feature>.state.ts` rather than `<feature>.ts` so that
@@ -473,7 +495,7 @@ with the dev server.
   avoids adding `vitest/globals` to the `types` array in `tsconfig.json`.
 - `src/test/setup.ts` loads the `@testing-library/jest-dom` matchers and calls `cleanup` in an
   `afterEach`, which Testing Library would otherwise register itself only under globals.
-- `.oxlintrc.jsonc` exempts `src/**/*.test.{ts,tsx}` and `src/test/**` from `max-lines` and
-  `max-lines-per-function`.
+- `.oxlintrc.jsonc` exempts `src/**/*.test.{ts,tsx}`, `src/test/**` and `build/**/*.test.ts`
+  from `max-lines` and `max-lines-per-function`.
 - `"e2e": "playwright test"` is still declared without `@playwright/test` installed, so that
   script fails until someone adds it.

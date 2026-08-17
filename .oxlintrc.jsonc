@@ -116,7 +116,7 @@
       },
     },
     {
-      "files": ["src/**/*.test.{ts,tsx}", "src/test/**/*"],
+      "files": ["src/**/*.test.{ts,tsx}", "src/test/**/*", "build/**/*.test.ts"],
       "rules": {
         "max-lines-per-function": "off",
         "max-lines": "off",
