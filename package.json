@@ -52,6 +52,8 @@
     "oxlint": "^1.78.0",
     "oxlint-tsgolint": "^7.0.2001",
     "shadcn": "^4.18.0",
+    "sharp": "^0.35.3",
+    "svgo": "^4.0.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",

@@ -21,10 +21,12 @@ runner; it is not the server or the bundler.
 
 - `index.html` is the Vite entry. See "Theme" below for the inline script in its `<head>`,
   and "Document head" for what the static metadata can and cannot do.
-- `public/` is copied into `dist/` verbatim and served at `/`, for files that need an exact
-  name at a known URL: `icon.svg` and `robots.txt` today, plus `favicon.ico` and
+- `public/` is copied into `dist/` under the same names and served at `/`, for files that need
+  an exact name at a known URL: `icon.svg` and `robots.txt` today, plus `favicon.ico` and
   `apple-touch-icon.png` when someone makes them. Anything a module can `import` belongs in
-  `src/` instead, so it gets hashed and revved.
+  `src/` instead, so it gets hashed and revved. Names survive the copy but bytes do not:
+  `images()` re-encodes anything it recognises, here and in `dist/assets/` alike. See "Build
+  and tooling".
 - `src/main.tsx` mounts React and wires the router and the React Query client.
 - `src/routes/` holds TanStack Router file-based routes. `src/routeTree.gen.ts` is generated
   by `@tanstack/router-plugin` and committed; never edit it by hand.
@@ -173,9 +175,11 @@ fails the first paint rather than becoming `undefined` three layers down.
   anything without a server; and `vite-plugin-validate-env`, which would need the schema to live
   outside `src` so `vite.config.ts` could import it, crossing the tsconfig project split for a
   build-time error the boot-time throw already gives.
-- Tailwind v4's automatic source detection scans this file too, so a plain English word in this
-  prose can emit a utility class and its breakpoint media queries into `dist`. That is where a
-  mysterious 270 bytes of CSS came from once, while writing the section above.
+- Tailwind v4's automatic source detection used to scan this file too, so a plain English word
+  in this prose could emit a utility class and its breakpoint media queries into `dist`. That
+  is where a mysterious 270 bytes of CSS came from once, while writing the section above, and
+  the word "container" in a `vite.config.ts` comment later cost 272 more. Detection is now
+  explicit rather than automatic, so prose anywhere is inert; see "Build and tooling".
 
 ## Theme
 
@@ -222,6 +226,17 @@ it does nothing for link previews.
   list every input file, so `@/...` there fails with TS6307.
 - Tailwind v4 is configured through `@tailwindcss/vite`, not a `tailwind.config.js`. Theme
   tokens live in `@theme inline` in `src/styles/index.css`.
+- That file imports Tailwind as `@import 'tailwindcss' source(none)` and then names its sources
+  itself: `src/**/*.{ts,tsx}` and `index.html`. Automatic detection scans every non-gitignored
+  file in the repo, so an English word in prose or in a code comment emits a utility and every
+  breakpoint media query attached to it. That was not theoretical: `filter`, `fixed`, `hidden`,
+  `isolate`, `static`, `table`, `transform`, `transition`, `visible` and `container` were all
+  being emitted out of documentation and config comments, 2.3 kB of CSS matching nothing in the
+  app. `@source not` is the documented remedy and it is not enough here, because `AGENTS.md` is
+  reached through the `CLAUDE.md` symlink and excluding either name leaves it scanned. Adding a
+  source is one line; the thing to avoid is going back to detection-by-default. Verify a change
+  by putting a real utility in a doc and confirming the CSS does not grow, then in a component
+  and confirming it does.
 - Vendor chunking is set in `vite.config.ts` under `build.rolldownOptions.output.codeSplitting`.
   Groups match in order and the last one is a `node_modules` catch-all, so new packages land
   in a long-lived vendor chunk rather than in route chunks. The groups are deliberately
@@ -248,11 +263,45 @@ it does nothing for link previews.
   only, experimental). `rollup-plugin-visualizer` is a Rollup plugin and does not apply.
 - The local `brotli()` plugin in `vite.config.ts` writes a `.br` beside every asset matching
   `PRECOMPRESS` that is at least `MIN_BYTES`, then prints a raw-to-compressed table. On this
-  bundle that is 105.5 kB against 384.3 kB uncompressed. `node:zlib` already does brotli, so
+  bundle that is 119.6 kB against 443.7 kB uncompressed. `node:zlib` already does brotli, so
   this is a `closeBundle` hook rather than a dependency; `vite-plugin-compression2` was tried
   first and dropped, because it emits through `this.emitFile` and there is no option to keep
   the `.br` files out of Vite's own asset listing, where they sort by size in among the
   originals they duplicate.
+- A second table follows it, `dist/ total`, which is what the deploy weighs: every file in
+  `dist/` counted once, bucketed into js, css, fonts, images and other, raw against what a
+  server sends (the `.br` where one exists, the file itself otherwise). It is there because the
+  brotli table answers a narrower question - it lists only the files that got compressed, so
+  the 530 kB of font subsets and everything under one MTU are missing from its total. The walk
+  `stat`s every file and reads only the ones it compresses, so those fonts are never loaded
+  into memory. Both tables come out of that one walk, which is why this is one plugin and not
+  two.
+- The `images()` plugin re-encodes every png, jpeg, webp, avif and svg in `dist/` in place, and
+  prints the same shape of table above the other two. sharp does the rasters (`quality: 80`,
+  mozjpeg for jpeg, `palette: true` for png, which is the quantisation that does the real work)
+  and svgo the svg. It rewrites a file only when the result is smaller, so an already-optimised
+  jpeg is left alone and a second pass over the same `dist/` is a no-op. Measured on fixtures:
+  67% off a 5.8 MB noise png, 72% off a 2.4 MB jpeg, and `icon.svg` 447 bytes to 224.
+- Two lines in it are load-bearing. `sharp(raw).autoOrient()` has to come first, because
+  `toBuffer()` strips all metadata including the EXIF orientation tag, so without it a phone
+  photo ships rotated: verified with a fixture tagged `Orientation: 6`, which comes out
+  1200x1600 upright rather than 1600x1200 sideways. And the svgo call passes no `overrides`,
+  because v4 dropped `removeViewBox` from `preset-default` - configuring a plugin the preset
+  does not contain just logs a warning on every build.
+- gif and ico are deliberately skipped. sharp keeps only the first frame of a gif unless the
+  input is opened with `{ animated: true }`, and a silently de-animated gif is worse than an
+  unoptimised one; ico is a multi-resolution wrapper it does not round-trip.
+- The work is in `writeBundle` while the table waits for `closeBundle`. That is not cosmetic:
+  every `writeBundle` resolves before any `closeBundle` starts, which is what makes `brotli()`
+  precompress the _minified_ svg and the `dist/ total` figures count the re-encoded bytes.
+  Verified both ways - a 33 kB svg reaches brotli as its optimised 9.75 kB, and a 4.3 kB one
+  that optimises to 1.29 kB correctly drops below `MIN_BYTES` and gets no `.br` at all. Vite
+  copies `public/` at `renderStart`, long before either hook, so one walk covers `public/` and
+  the hashed `dist/assets/` alike. Optimising after emit does mean an asset's content hash is
+  of its pre-optimisation bytes, which is harmless unless something starts checking SRI.
+- What `images()` cannot reach: anything under `build.assetsInlineLimit` (Vite's default 4096
+  bytes) is base64'd into the JS or CSS and never becomes a file. Per import, `?no-inline` opts
+  out; globally, `assetsInlineLimit: 0` does, at the cost of extra requests. Left at default.
 - Three constants there are load-bearing. `PRECOMPRESS` is an allowlist rather than a woff2
   denylist: woff2 is already brotli inside, so the font subsets come back a few bytes
   _larger_, and they are 440 kB of `dist/assets/`. `MIN_BYTES` is one MTU, under which a
