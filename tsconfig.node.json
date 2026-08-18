@@ -12,7 +12,8 @@
     "types": ["bun"]
   },
   // A glob, so a vitest.config.ts or playwright.config.ts is covered the day it appears.
-  // `build/` is the Vite plugins vite.config.ts imports, tests included.
-  "include": ["*.config.ts", ".githooks/**/*.ts", "build/**/*.ts"],
+  // `build/` is the Vite plugins vite.config.ts imports, `lint/` the local oxlint plugin,
+  // tests included.
+  "include": ["*.config.ts", ".githooks/**/*.ts", "build/**/*.ts", "lint/**/*.ts"],
   "references": []
 }

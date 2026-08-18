@@ -31,6 +31,10 @@ runner; it is not the server or the bundler.
   of options: `report.ts` draws the three tables, `brotli.ts` and `images.ts` are the two local
   plugins. It is Node code, tested under its own Vitest project against a temporary `dist/`.
   See "Build and tooling" and "Testing".
+- `lint/` is the local oxlint plugin, `jotai.ts`, loaded through `jsPlugins` because nothing
+  published lints Jotai. Node code like `build/`, with its own Vitest project; its tests drive
+  the real oxlint binary rather than a RuleTester, which oxlint does not ship. See "Lint rules
+  worth knowing" and "Testing".
 - `src/main.tsx` mounts React and wires the router and the React Query client.
 - `src/routes/` holds TanStack Router file-based routes. `src/routeTree.gen.ts` is generated
   by `@tanstack/router-plugin` and committed; never edit it by hand.
@@ -92,7 +96,9 @@ Context to share values, and don't lift state up through props just to share it.
 - Derived atoms are the answer to the `useEffect` ban below. A value computed from other
   state is an `atom((get) => ...)`, never state you keep in sync by hand.
 - Read with `useAtomValue`, write with `useSetAtom`. `useAtom` only when a component genuinely
-  needs both, since it subscribes the component to the value.
+  needs both, since it subscribes the component to the value. `jotai/prefer-narrow-hook` in
+  `lint/jotai.ts` enforces this, along with the `Atom` suffix and the ban on creating an atom
+  during render; see "Lint rules worth knowing".
 - Persist with `atomWithStorage` from `jotai/utils`. Pass `{ getOnInit: true }` or the first
   render shows the initial value and corrects itself on mount.
 - Deliberately not installed: `jotai-devtools` (drags in the whole Mantine UI kit) and
@@ -223,11 +229,11 @@ it does nothing for link previews.
 
 - `bun run dev` starts Vite. `bun run build` runs `tsc -b` then `vite build`.
 - Two TypeScript projects: `tsconfig.json` covers `src`, and `tsconfig.node.json` (which
-  extends it) covers `*.config.ts`, `.githooks/` and `build/`. Build mode is what checks both,
-  so use `tsc -b`; plain `tsc` silently skips the referenced project. `tsconfig.node.json` must
-  emit (TS7 forbids `noEmit` on a referenced project), so it emits declarations only, into
-  `node_modules/.tmp/`. Tooling files can't import from `src`: a composite project has to
-  list every input file, so `@/...` there fails with TS6307.
+  extends it) covers `*.config.ts`, `.githooks/`, `build/` and `lint/`. Build mode is what
+  checks both, so use `tsc -b`; plain `tsc` silently skips the referenced project.
+  `tsconfig.node.json` must emit (TS7 forbids `noEmit` on a referenced project), so it emits
+  declarations only, into `node_modules/.tmp/`. Tooling files can't import from `src`: a
+  composite project has to list every input file, so `@/...` there fails with TS6307.
 - Everything `vite.config.ts` reaches carries an explicit `.ts` on the import, unlike `src`.
   Vite's config loader has a `native` mode, planned to become the default, that does not
   resolve an extensionless import; today it only warns, and the warning names the line.
@@ -397,24 +403,52 @@ a guardrail.
 
 **Type-aware.** `"typeAware": true` runs `oxlint-tsgolint` against the real TypeScript
 program, which is the only tier that sees across a call boundary. It needs TypeScript 7, so
-do not downgrade TypeScript without removing this first. It costs about 0.1s here. The rules
-are `no-floating-promises`, `no-misused-promises` (an `async` function passed to `onClick`),
-`await-thenable`, `require-await`, `no-unnecessary-condition`, `switch-exhaustiveness-check`,
-`no-unnecessary-type-assertion`, `no-array-delete`, `prefer-promise-reject-errors`, and the
-`no-unsafe-*` set that stops `any` spreading out of an untyped edge.
+do not downgrade TypeScript without removing this first. It costs about 0.2s here, taking a
+run over `src`, `build` and `lint` from 0.10s to 0.30s. The rules are `no-floating-promises`,
+`no-misused-promises` (an `async` function passed to `onClick`), `await-thenable`,
+`require-await`, `no-unnecessary-condition`, `switch-exhaustiveness-check`,
+`no-unnecessary-type-assertion`, `no-array-delete`, `prefer-promise-reject-errors`,
+`no-deprecated`, and the `no-unsafe-*` set that stops `any` spreading out of an untyped edge.
+`no-deprecated` is the one that keeps this file honest without a re-audit: it fails the build
+the first time React, TanStack or Jotai marks something deprecated, so a version bump surfaces
+the migration here rather than in a changelog nobody read.
 
-**JS plugins.** `jsPlugins` runs real ESLint plugins through oxlint's JS bridge, which is how
-the two TanStack plugins get in: `@tanstack/eslint-plugin-query` under the alias `query`, and
-`@tanstack/eslint-plugin-router` under `router`. The bridge is alpha and not covered by semver,
-and it costs 0.16s here, 0.32s to 0.48s over `src` and `build`, because each plugin starts a JS
-runtime beside the Rust linter. Four things to know before touching it. The native plugin names
-are reserved, `react`, `typescript`, `import`, `vitest` and the rest, so a JS plugin needs an
-alias, which is what the `{ name, specifier }` form is for and what rule names then use.
-Categories do not reach these rules, so every one is listed in `rules` by hand; the plugins' own
-`recommended` config is not readable from here. A rule that wants type information gets none:
+**JS plugins.** `jsPlugins` runs real ESLint plugins through oxlint's JS bridge. Five are
+loaded: `@tanstack/eslint-plugin-query` as `query`, `@tanstack/eslint-plugin-router` as
+`router`, the local `./lint/jotai.ts` as `jotai`, plus `eslint-plugin-testing-library` and
+`eslint-plugin-jest-dom` under their own names. The bridge is alpha and not covered by semver,
+and it is the expensive half of a lint run: 0.30s to 0.60s over `src`, `build` and `lint`,
+against 0.30s without it. Five things to know before touching it. The native plugin names are
+reserved, `react`, `typescript`, `import`, `vitest` and the rest, so a colliding plugin needs an
+alias, which is what the `{ name, specifier }` form is for and what rule names then use;
+`testing-library` and `jest-dom` collide with nothing, so they are plain strings. A specifier
+can be a path as well as a package, which is what makes a local plugin possible. Categories do
+not reach these rules, so every one is listed in `rules` by hand; the plugins' own `recommended`
+config is not readable from here. A rule that wants type information gets none:
 `no-void-query-fn` returns early when `parserServices` is missing and checks nothing, which is
 why it is left out rather than set to `"error"` and believed. And fixers do work, so
 `oxlint --fix` reorders a `useMutation` and the pre-commit hook fixes these like any other rule.
+
+**Rules of React.** `react/react-compiler` runs the React Compiler's own analysis in
+lint-only mode, and it is the only tier here that sees the Rules of React rather than just the
+Rules of Hooks: setState during render or synchronously in an effect, reading or writing a ref
+during render, mutating props, state or a value returned from a hook, calling an impure
+function during render, defining a component inside another component, `useMemo` used for a
+side effect, and state derived in an effect that belongs in render. The compiler ships inside
+the oxlint binary, so it costs no dependency and, measured both ways, no time either. It is a
+`nursery` rule, so the categories do not reach it and an oxlint minor can change what it
+reports; that is the price, and it is worth paying for the only rule in the file that
+understands what React actually guarantees. `react/exhaustive-deps` (correctness) and
+`react/rules-of-hooks` (pedantic) arrive through the categories and stay the cheap first line.
+
+Four `restriction` rules are named alongside it, all house style, with nothing in `src`
+violating them: `button-has-type`, `no-danger`, `no-clone-element`, and
+`prefer-function-component`, which is the one that says React 19 here means function components
+only. `only-export-components` is the fifth, and it is off for two directories rather than
+weakened: `src/components/ui`, because `buttonVariants` next to `Button` is how shadcn ships it,
+and `src/routes`, because a file-based route module has to export `Route` and the component it
+names lives beside it. `allowExportNames: ["Route"]` does not help there - it exempts the export
+without exempting the local component, which was checked before the rule was scoped instead.
 
 **Escape hatches.** `no-explicit-any`, `no-non-null-assertion` (`!`), `no-console`, and
 `ban-ts-comment`: `@ts-ignore` is banned outright, `@ts-expect-error` needs a description and
@@ -424,16 +458,35 @@ starts failing once the underlying problem is fixed.
 type, components included (`import type { JSX } from 'react'`, then `: JSX.Element`). An
 inferred type that is subtly wrong becomes an error at the boundary rather than downstream.
 
-- `useEffect` is banned from `react` imports. Derive state or use event handlers. If genuinely
-  unavoidable, add `// oxlint-disable-next-line no-restricted-imports` with a justification.
+- Four bans in `no-restricted-imports`, each with the same escape hatch: an inline
+  `// oxlint-disable-next-line no-restricted-imports` plus a justification comment.
+  `useEffect` from `react`, because derived state and event handlers cover it.
+  `forwardRef` from `react`, because React 19 passes `ref` as an ordinary prop.
+  `createContext` and `useContext` from `react`, because Jotai owns client state and React
+  Query owns server state, so Context here would be a third place to look.
+  `getDefaultStore` from `jotai`, because `src/lib/store.ts` wires an explicit `createStore()`
+  that `main.tsx` hands to `<Provider>`; the default store silently bypasses it, so reads and
+  writes land in a store nothing rendered against and tests stop being isolated. All four see
+  named imports only: `import React from 'react'` then `React.forwardRef` slips through.
 - `max-lines` 400, `max-lines-per-function` 40, `complexity` 15. Test files are exempt.
 - `@/features/*/*` is restricted, so a feature is reachable only through its `index.ts` and its
   internals stay internal. Inside a feature you import relatively, which the same rule pushes
   you towards. There is no exemption for particular filenames, deliberately: the rule should not
   care what a feature chooses to call its parts.
-- `src/features/*/*.state.ts` additionally cannot import `./*.queries` or `./*.api`. That is the
-  dependency direction from "Feature structure" made enforceable: client state never reaches up
-  into the server-state layer.
+- Three overrides make the layer boundaries from "Feature structure" enforceable rather than
+  leaving them as prose. `src/features/*/*.state.ts` cannot import `./*.queries`, `./*.api`,
+  `@tanstack/react-query`, or `react` at all: client state never reaches up into the
+  server-state layer, and an atom is a plain value, which is what lets `counter.state.test.ts`
+  drive one through a bare `createStore()`. Banning the relative path alone would still leave
+  the package importable directly, which is why both are named.
+  `src/features/*/*.api.ts` cannot import `@tanstack/react-query`, `react` or `jotai`: the
+  transport is the one layer with no framework in it, and that is what keeps
+  `vi.mock('./counter.api')` meaningful while the real `queryOptions` still runs.
+  `src/features/*/*.tsx` cannot import `useMutation` or `useQueryClient`, because what a
+  mutation invalidates is a fact about the data rather than about the widget that triggered it,
+  so a component should never name a query key; `useQuery(countsQuery)` stays fine. That glob
+  covers `*.test.tsx` deliberately - a test reaching for a raw client is testing the wiring,
+  not the feature.
 - `import/no-cycle` is on. It is the backstop for direction mistakes the two patterns above
   cannot name, since most of them close a loop.
 - The `query/*` rules are the "Server state" section above made enforceable rather than left as
@@ -443,6 +496,18 @@ inferred type that is subtly wrong becomes an error at the boundary rather than 
   in `<feature>.queries.ts` instead of an object literal at the call site.
 - `router/create-route-property-order` and `router/route-param-names` are the whole router
   plugin. The first catches a `beforeLoad` written after the `loader` that reads its return.
+- The `jotai/*` rules come from `lint/jotai.ts`, which exists because nothing published lints
+  Jotai. `no-atom-in-render` is the one with a bug behind it: an atom factory called inside a
+  component or hook hands every render a different atom config, and `useAtom` can loop on it.
+  It allows module scope, a `useMemo`/`useRef`/`useState` wrapper, and a plain factory
+  function, since only a component or hook name triggers it. `prefer-narrow-hook` catches
+  `const [x] = useAtom(a)` and `const [, setX] = useAtom(a)`, which are the two shapes that
+  should be `useAtomValue` and `useSetAtom`; it ships no fixer, because the fix has to rewrite
+  the import too and a file left referencing an unimported hook is worse than the finding.
+  `atom-suffix` requires a module-scope atom to be named for what it is, with `atomFamily`
+  exempt because what that returns is a lookup function. All three follow the local binding
+  rather than the name, so `import { atom as makeAtom }` is still matched and a locally
+  declared `atom` is not.
 - `react-perf` is on except `jsx-no-new-function-as-prop`. The other three,
   `jsx-no-jsx-as-prop`, `jsx-no-new-array-as-prop` and `jsx-no-new-object-as-prop`, are fixed
   by hoisting a constant out of the component. The function one is not: its only remedy is
@@ -455,13 +520,25 @@ inferred type that is subtly wrong becomes an error at the boundary rather than 
   `expect-expect`, `no-focused-tests`, `valid-expect`, `no-conditional-expect`,
   `no-conditional-in-test`, `no-disabled-tests`, `no-standalone-expect`, `valid-title` and
   `no-commented-out-tests`.
+- `testing-library/*` and `jest-dom/*` are scoped by an override to `src/**/*.test.{ts,tsx}`
+  and `src/test/**`, so they never look at `build/` or `lint/`. The lists are
+  eslint-plugin-testing-library's `flat/react` config and jest-dom's `recommended` written out
+  by hand, since a JS plugin's own presets are unreachable from here; `no-debugging-utils` is
+  raised from the preset's `warn` to `error`, because a stray `screen.debug()` should fail CI
+  rather than scroll past in it. The one exemption is `no-manual-cleanup` on
+  `src/test/setup.ts`, disabled inline: the rule assumes Testing Library auto-registered
+  `cleanup`, and with Vitest globals off it did not. Testing Library is in oxlint's JS-plugin
+  conformance suite at 17,016 passing cases, so the bridge is less of a risk here than its
+  alpha label suggests.
 - oxlint has no `import/no-restricted-paths`; the above is built from `no-restricted-imports`
   patterns plus `overrides`. Two things to know before editing them. An override **replaces**
-  this rule rather than merging, so the `*.state.ts` override repeats the `useEffect` entry and
-  the feature-entry pattern verbatim; change one and you must change both. And a `group` glob
-  matches path segments, so `@/features/*` does not match `@/features/counter/counter` - that
-  needs `@/features/*/*`. Both are easy to get wrong silently, so verify a rule change by
-  writing a file that should fail and confirming it does.
+  this rule rather than merging, so the base entries are repeated verbatim in each of the three
+  overrides that redeclare it; change one and you must change all four. Where an override bans
+  a whole module the named-import entries for it are dropped rather than repeated, since the
+  module ban subsumes them. And a `group` glob matches path segments, so `@/features/*` does
+  not match `@/features/counter/counter` - that needs `@/features/*/*`. Both are easy to get
+  wrong silently, so verify a rule change by writing a file that should fail and confirming it
+  does.
 
 Relaxed on purpose, so nobody re-enables them expecting an improvement:
 `react/react-in-jsx-scope` is wrong under the automatic JSX runtime and is 44 of the 47
@@ -498,11 +575,19 @@ with the dev server.
 - Tests are colocated: `src/**/*.test.{ts,tsx}`, next to the file under test inside the
   feature. `src/features/counter/` is the worked example of both layers: atom logic is driven
   through a bare `createStore()` with no React, component behaviour through Testing Library.
-- Two Vitest projects, `app` and `build`, because they share nothing but the runner: `app` is
-  jsdom plus the React plugin and `src/test/setup.ts`, `build` is `build/**/*.test.ts` under
-  plain node with no setup at all. `setupFiles` is per-project and not per-file, so a single
-  project would run `cleanup()` and `localStorage.clear()` against a Node test and throw. Run
-  one on its own with `vitest --project build`.
+- Three Vitest projects, `app`, `build` and `lint`, because they share nothing but the runner:
+  `app` is jsdom plus the React plugin and `src/test/setup.ts`, `build` is `build/**/*.test.ts`
+  and `lint` is `lint/**/*.test.ts`, both under plain node with no setup at all. `setupFiles`
+  is per-project and not per-file, so a single project would run `cleanup()` and
+  `localStorage.clear()` against a Node test and throw. Run one on its own with
+  `vitest --project build`.
+- The `lint` tests spawn the real `oxlint` binary against a fixture file and a config in a
+  temporary directory, then parse `-f json`, because oxlint has no RuleTester. That is slower
+  than an in-process check - hence `testTimeout: 20_000` - and it is the point: the rules are
+  never asserted against a parser other than the one that will run them. `lint/**` is excluded
+  from coverage for the same reason, with the reason written next to it: the rules execute
+  inside oxlint's process, so v8 instruments none of them however thoroughly the tests drive
+  them. Do not lower the thresholds to accommodate that.
 - The `build` tests drive the plugins the way Vite does: `build/test/harness.ts` calls
   `configResolved` with a stub carrying the only two fields they read, then the test awaits
   `writeBundle`/`closeBundle` itself against a temporary directory that stands in for `dist/`.
@@ -523,6 +608,10 @@ with the dev server.
   three retries with exponential backoff and fails as a timeout rather than an assertion.
 - Mock the feature's `.api.ts` with `vi.mock`, never the query definitions. `vi` has to be
   imported explicitly, like `describe`/`it`/`expect`, since globals are off.
+- `eslint-plugin-testing-library` and `eslint-plugin-jest-dom` run over the test files through
+  oxlint. They are what pin `screen` queries over destructured ones, `findBy*` over
+  `waitFor` + `getBy*`, one assertion per `waitFor`, and `toHaveClass`/`toBeChecked` over
+  poking at attributes. See "Lint rules worth knowing" for the scoping and the one exemption.
 - `src/test/setup.ts` also clears `localStorage` after each test. A fresh store alone does not
   isolate `atomWithStorage` atoms, because they re-read storage in `onMount`.
 - `test.execArgv` in `vitest.config.ts` passes `--no-webstorage`. Node 25 defines a global

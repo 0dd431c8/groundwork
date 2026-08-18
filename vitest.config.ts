@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 // rewrites the committed src/routeTree.gen.ts.
 export default defineConfig({
   test: {
-    // Two suites with nothing in common but the runner. `setupFiles` is per-project and not
+    // Three suites with nothing in common but the runner. `setupFiles` is per-project and not
     // per-file, so this split is what keeps `localStorage.clear()` out of a Node test.
     // Run one with `vitest --project build`.
     projects: [
@@ -30,6 +30,16 @@ export default defineConfig({
           include: ['build/**/*.test.ts'],
         },
       },
+      {
+        resolve: { tsconfigPaths: true },
+        test: {
+          name: 'lint',
+          environment: 'node',
+          // Each case spawns the oxlint binary, so give them longer than the 5s default.
+          testTimeout: 20_000,
+          include: ['lint/**/*.test.ts'],
+        },
+      },
     ],
     coverage: {
       provider: 'v8',
@@ -46,6 +56,9 @@ export default defineConfig({
         'src/lib/store.ts',
         'src/features/*/index.ts',
         'build/test/**',
+        // lint/jotai.ts runs inside oxlint's process, not this one, so v8 instruments none of
+        // it however thoroughly lint/jotai.test.ts drives it.
+        'lint/**',
       ],
       // A floor against a feature landing untested, not a quality bar. Raise, never lower.
       thresholds: { statements: 90, branches: 90, functions: 90, lines: 90 },

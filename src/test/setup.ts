@@ -1,4 +1,6 @@
 import '@testing-library/jest-dom/vitest';
+// The rule assumes the auto-registration below is in effect; with globals off it is not.
+// oxlint-disable-next-line testing-library/no-manual-cleanup
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
 

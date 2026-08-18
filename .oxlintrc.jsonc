@@ -18,6 +18,13 @@
   "jsPlugins": [
     { "name": "query", "specifier": "@tanstack/eslint-plugin-query" },
     { "name": "router", "specifier": "@tanstack/eslint-plugin-router" },
+    // Local, because nothing published lints Jotai. See lint/jotai.ts.
+    { "name": "jotai", "specifier": "./lint/jotai.ts" },
+    // Neither name is reserved, so these two need no alias. Testing Library is in oxlint's
+    // JS-plugin conformance suite (17,016 cases, all passing), so the bridge is not the risk
+    // here that its alpha label suggests.
+    "eslint-plugin-testing-library",
+    "eslint-plugin-jest-dom",
   ],
   "options": {
     // Runs the type-aware rules below against the real TypeScript program, which is the
@@ -65,6 +72,9 @@
     "typescript/switch-exhaustiveness-check": "error",
     "typescript/no-unnecessary-type-assertion": "error",
     "typescript/no-array-delete": "error",
+    // Flags a React, TanStack or Jotai API the moment upstream deprecates it, so a version
+    // bump surfaces the migration here rather than in a changelog nobody read.
+    "typescript/no-deprecated": "error",
     "typescript/prefer-promise-reject-errors": "error",
 
     "typescript/no-unsafe-assignment": "error",
@@ -74,6 +84,26 @@
     "typescript/no-unsafe-argument": "error",
     "typescript/restrict-template-expressions": "error",
     "typescript/prefer-nullish-coalescing": "error",
+
+    // Runs the React Compiler's own analysis in lint-only mode, which is the only tier that
+    // sees the Rules of React rather than just the Rules of Hooks: setState during render or
+    // synchronously in an effect, reading a ref during render, mutating props, state or a
+    // value returned from a hook, calling an impure function during render, defining a
+    // component inside another component's render, and state derived in an effect that
+    // belongs in render. `nursery`, so it is not reached by the categories above and an
+    // oxlint minor can change what it reports; that is the price of the only rule here that
+    // understands what React actually guarantees.
+    "react/react-compiler": "error",
+    // Fast Refresh only reloads a module that exports components and nothing else. Off for
+    // `src/routes` and `src/components/ui` below; `allowExportNames` does not help there,
+    // because it exempts the export without exempting the local component beside it.
+    "react/only-export-components": "error",
+    // `restriction` rules, so also not reached by the categories. All four are React 19 house
+    // style with nothing in `src` violating them today.
+    "react/button-has-type": "error",
+    "react/no-danger": "error",
+    "react/no-clone-element": "error",
+    "react/prefer-function-component": "error",
 
     // The queryKey has to name everything the queryFn closes over, or two different fetches
     // share a cache entry. `prefer-query-options` is not in the plugin's recommended set; it
@@ -86,6 +116,12 @@
     "query/infinite-query-property-order": "error",
     "query/mutation-property-order": "error",
     "query/prefer-query-options": "error",
+
+    // The three Jotai practices no config-level rule can express. Like the plugins above,
+    // categories do not reach these, so each one is named here.
+    "jotai/no-atom-in-render": "error",
+    "jotai/prefer-narrow-hook": "error",
+    "jotai/atom-suffix": "error",
 
     "router/create-route-property-order": "error",
     "router/route-param-names": "error",
@@ -101,8 +137,11 @@
     "react-perf/jsx-no-new-function-as-prop": "off",
 
     "import/no-cycle": "error",
-    // Keep in sync with the src/features/*/*.state.ts override below: an override that
-    // redeclares this rule replaces it wholesale rather than merging.
+    // Three overrides below redeclare this rule, and a redeclaration replaces it wholesale
+    // rather than merging, so each one restates what it still wants. Change an entry here and
+    // check all three. Where an override bans a whole module the named-import entries for it
+    // are dropped rather than repeated, since the module ban already covers them.
+    // Named imports only: `import React from 'react'` then `React.forwardRef` slips through.
     "no-restricted-imports": [
       "error",
       {
@@ -111,6 +150,21 @@
             "name": "react",
             "importNames": ["useEffect"],
             "message": "useEffect is banned. Derive state, use event handlers, or - if truly unavoidable - add `// oxlint-disable-next-line no-restricted-imports` on the import with a justification comment.",
+          },
+          {
+            "name": "react",
+            "importNames": ["forwardRef"],
+            "message": "React 19 passes `ref` as an ordinary prop, so forwardRef is dead weight. Declare `ref` in the props type instead.",
+          },
+          {
+            "name": "react",
+            "importNames": ["createContext", "useContext"],
+            "message": "Context is not the sharing mechanism here: Jotai owns client state and React Query owns server state. If a value genuinely has to be injected per subtree, add `// oxlint-disable-next-line no-restricted-imports` with a justification comment.",
+          },
+          {
+            "name": "jotai",
+            "importNames": ["getDefaultStore"],
+            "message": "src/lib/store.ts wires an explicit `createStore()` that main.tsx passes to `<Provider>`. The default store silently bypasses it, so reads and writes land in a store nothing rendered against and tests stop being isolated.",
           },
         ],
         "patterns": [
@@ -148,7 +202,13 @@
       },
     },
     {
-      "files": ["src/**/*.test.{ts,tsx}", "src/test/**/*", "build/**/*.test.ts"],
+      "files": [
+        "src/**/*.test.{ts,tsx}",
+        "src/test/**/*",
+        "build/**/*.test.ts",
+        "lint/**/*.test.ts",
+        "lint/test/**/*",
+      ],
       "rules": {
         "max-lines-per-function": "off",
         "max-lines": "off",
@@ -157,15 +217,71 @@
       },
     },
     {
+      // Testing Library and jest-dom, scoped to where tests live so they never look at
+      // `build/` or `lint/`. Both plugins' own presets are unreachable from here, so this is
+      // eslint-plugin-testing-library's `flat/react` config and jest-dom's `recommended`
+      // written out by hand. `no-debugging-utils` is an error rather than the preset's warn:
+      // a stray `screen.debug()` should fail CI, not scroll past in it.
+      "files": ["src/**/*.test.{ts,tsx}", "src/test/**/*"],
+      "rules": {
+        "testing-library/await-async-events": ["error", { "eventModule": "userEvent" }],
+        "testing-library/await-async-queries": "error",
+        "testing-library/await-async-utils": "error",
+        "testing-library/no-await-sync-events": ["error", { "eventModules": ["fire-event"] }],
+        "testing-library/no-await-sync-queries": "error",
+        "testing-library/no-container": "error",
+        "testing-library/no-debugging-utils": "error",
+        "testing-library/no-dom-import": ["error", "react"],
+        "testing-library/no-global-regexp-flag-in-query": "error",
+        "testing-library/no-manual-cleanup": "error",
+        "testing-library/no-node-access": "error",
+        "testing-library/no-promise-in-fire-event": "error",
+        "testing-library/no-render-in-lifecycle": "error",
+        "testing-library/no-unnecessary-act": "error",
+        "testing-library/no-wait-for-multiple-assertions": "error",
+        "testing-library/no-wait-for-side-effects": "error",
+        "testing-library/no-wait-for-snapshot": "error",
+        "testing-library/prefer-find-by": "error",
+        "testing-library/prefer-presence-queries": "error",
+        "testing-library/prefer-query-by-disappearance": "error",
+        "testing-library/prefer-screen-queries": "error",
+        "testing-library/render-result-naming-convention": "error",
+
+        "jest-dom/prefer-checked": "error",
+        "jest-dom/prefer-empty": "error",
+        "jest-dom/prefer-enabled-disabled": "error",
+        "jest-dom/prefer-focus": "error",
+        "jest-dom/prefer-in-document": "error",
+        "jest-dom/prefer-required": "error",
+        "jest-dom/prefer-to-have-attribute": "error",
+        "jest-dom/prefer-to-have-class": "error",
+        "jest-dom/prefer-to-have-style": "error",
+        "jest-dom/prefer-to-have-text-content": "error",
+        "jest-dom/prefer-to-have-value": "error",
+      },
+    },
+    {
+      // A file-based route module has to export `Route`, and the component it names lives
+      // beside it. Fast Refresh loses that module either way; the router owns its shape.
+      "files": ["src/routes/**"],
+      "rules": {
+        "react/only-export-components": "off",
+      },
+    },
+    {
       "files": ["src/components/ui/**"],
       "rules": {
         "no-restricted-imports": "off",
+        // `buttonVariants` next to `Button` is how shadcn ships it.
+        "react/only-export-components": "off",
         "typescript/explicit-module-boundary-types": "off",
       },
     },
     {
-      // Client state must not reach up into the server-state layer or the transport. The
-      // base entries are repeated because oxlint replaces the rule rather than merging it.
+      // Client state must not reach up into the server-state layer or the transport, and an
+      // atom is a plain value with no React in it. The base entries are repeated because
+      // oxlint replaces the rule rather than merging it; `react` is banned outright here,
+      // which subsumes the three named-import entries in the base rule.
       "files": ["src/features/*/*.state.ts"],
       "rules": {
         "no-restricted-imports": [
@@ -174,8 +290,16 @@
             "paths": [
               {
                 "name": "react",
-                "importNames": ["useEffect"],
-                "message": "useEffect is banned. Derive state, use event handlers, or - if truly unavoidable - add `// oxlint-disable-next-line no-restricted-imports` on the import with a justification comment.",
+                "message": "Atoms are plain values with no React in them, which is what lets counter.state.test.ts drive them through a bare createStore(). Anything that needs a hook belongs in a component or in <feature>.queries.ts.",
+              },
+              {
+                "name": "@tanstack/react-query",
+                "message": "Client state never reaches into the server-state layer. Banning the relative ./*.queries path alone still leaves the package importable directly.",
+              },
+              {
+                "name": "jotai",
+                "importNames": ["getDefaultStore"],
+                "message": "src/lib/store.ts wires an explicit `createStore()` that main.tsx passes to `<Provider>`. The default store silently bypasses it, so reads and writes land in a store nothing rendered against and tests stop being isolated.",
               },
             ],
             "patterns": [
@@ -186,6 +310,84 @@
               {
                 "group": ["./*.queries", "./*.api"],
                 "message": "Dependencies point one way: .state.ts <- .queries.ts <- components. Client state must not import the server-state layer or the transport. Derive the other direction instead.",
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      // The transport: fetch and its types, nothing else. This is what keeps
+      // `vi.mock('./counter.api')` meaningful, since the real query wiring stays above it.
+      "files": ["src/features/*/*.api.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "react",
+                "message": "The transport is the one layer with no framework in it. Keep fetch and its types here; put anything React-shaped in <feature>.queries.ts or a component.",
+              },
+              {
+                "name": "@tanstack/react-query",
+                "message": "The transport stays React Query free, which is what lets a test vi.mock('./counter.api') and still exercise the real queryOptions wiring. Query definitions go in <feature>.queries.ts.",
+              },
+              {
+                "name": "jotai",
+                "message": "The transport is the one layer with no framework in it. Server data never gets copied into an atom.",
+              },
+            ],
+            "patterns": [
+              {
+                "group": ["@/features/*/*"],
+                "message": "Import a feature through its index (`@/features/counter`), not its internals. Inside a feature, import relatively (`./counter.state`).",
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      // Components read queries and call hooks the queries layer exports; they do not own
+      // mutations or reach for the client. Covers *.test.tsx too, deliberately: a test that
+      // needs a raw client is testing the wiring, not the feature.
+      "files": ["src/features/*/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "react",
+                "importNames": ["useEffect"],
+                "message": "useEffect is banned. Derive state, use event handlers, or - if truly unavoidable - add `// oxlint-disable-next-line no-restricted-imports` on the import with a justification comment.",
+              },
+              {
+                "name": "react",
+                "importNames": ["forwardRef"],
+                "message": "React 19 passes `ref` as an ordinary prop, so forwardRef is dead weight. Declare `ref` in the props type instead.",
+              },
+              {
+                "name": "react",
+                "importNames": ["createContext", "useContext"],
+                "message": "Context is not the sharing mechanism here: Jotai owns client state and React Query owns server state. If a value genuinely has to be injected per subtree, add `// oxlint-disable-next-line no-restricted-imports` with a justification comment.",
+              },
+              {
+                "name": "jotai",
+                "importNames": ["getDefaultStore"],
+                "message": "src/lib/store.ts wires an explicit `createStore()` that main.tsx passes to `<Provider>`. The default store silently bypasses it, so reads and writes land in a store nothing rendered against and tests stop being isolated.",
+              },
+              {
+                "name": "@tanstack/react-query",
+                "importNames": ["useMutation", "useQueryClient"],
+                "message": "A mutation gets a named hook in <feature>.queries.ts (`useSaveCount`), because what it invalidates is a fact about the data, not about the widget that triggered it - a component should never name a query key. `useQuery(countsQuery)` stays fine here.",
+              },
+            ],
+            "patterns": [
+              {
+                "group": ["@/features/*/*"],
+                "message": "Import a feature through its index (`@/features/counter`), not its internals. Inside a feature, import relatively (`./counter.state`).",
               },
             ],
           },
