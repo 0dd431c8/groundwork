@@ -34,8 +34,8 @@ function shrinkRaster(raw: Buffer, ext: string): Promise<Buffer> | null {
   return encode(sharp(raw).autoOrient()).toBuffer();
 }
 
-// Rewrites in place, and only ever downwards: an already-optimised jpeg comes back bigger,
-// the same way woff2 does under brotli. That is also what makes a second pass a no-op.
+// Only ever rewrites downwards, so an already-optimised image is left alone and a second
+// pass over the same output directory is a no-op.
 export async function shrink(outDir: string, name: string): Promise<Shrunk | null> {
   const path = join(outDir, name);
   const raw = await readFile(path);
@@ -59,10 +59,9 @@ function logImages(log: Log, outDir: string, rows: readonly Shrunk[]): void {
   table(log, 'images', `(${outDir}/)`, shrunk);
 }
 
-// The work is in `writeBundle` because every `writeBundle` resolves before any
-// `closeBundle` starts: that is what lets `brotli()` precompress the minified svg and
-// the `dist/ total` table count the re-encoded bytes. Vite copies `public/` at `renderStart`,
-// well before either, so `icon.svg` is already there to be found. Only the table waits for
+// The work is in `writeBundle` because every `writeBundle` resolves before any `closeBundle`
+// starts, which is what lets `brotli()` precompress the already-minified bytes. Vite copies
+// `public/` at `renderStart`, so those files are here too. Only the table waits for
 // `closeBundle`, so it prints with the other two rather than above Vite's asset listing.
 export function images(): Plugin {
   let outDir = 'dist';

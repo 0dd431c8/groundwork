@@ -21,9 +21,8 @@ const kB = (n: number): string => `${(n / 1000).toFixed(2)} kB`.padStart(9);
 
 const files = (n: number): string => `${String(n)} file${n === 1 ? '' : 's'}`;
 
-// `styleText` inspects process.stdout itself - TTY, NO_COLOR, FORCE_COLOR, TERM=dumb - and hands
-// the string back untouched when colour is unwanted, so a build piped into a log file needs no
-// flag. Node and Bun both have it, which is why this is not a picocolors dependency.
+// `styleText` checks TTY, NO_COLOR and FORCE_COLOR itself and returns the string untouched when
+// colour is unwanted, so a build piped into a log file needs no flag.
 export type Paint = (s: string) => string;
 
 const paint =
@@ -35,8 +34,7 @@ const plain: Paint = (s) => s;
 const dim = paint('dim');
 const bold = paint('bold');
 
-// Keyed by bucket, so one map covers both the filenames and the bucket rows in `dist/ total`.
-// Green is missing on purpose: it is what the size column uses to mean "this shrank".
+// Green is missing on purpose: the size column uses it to mean "this shrank".
 const TINTS: Record<string, Paint> = {
   js: paint('cyan'),
   css: paint('magenta'),
@@ -51,8 +49,7 @@ type Style = { size: Paint; gain: Paint };
 const DATA: Style = { size: dim, gain: paint('green') };
 const TOTAL: Style = { size: bold, gain: paint('bold', 'green') };
 
-// Vite names an asset `[name]-[hash]` with an 8-character base64url hash. A name that happens to
-// end in an 8-character suffix gets dimmed for nothing, which costs a shade and nothing else.
+// Vite names an asset `[name]-[hash]` with an 8-character base64url hash.
 const HASH = /-[\w-]{8}(?=\.[^.]*$)/u;
 
 // Dimming the directory and the hash leaves the part of the name that identifies the file.
@@ -73,17 +70,13 @@ const pct = (before: number, after: number): string => {
 
 export type Line = { name: string; tint: Paint; before: number; after: number };
 
-// A row stays in `style.size` when nothing shrank, so `fonts 530.58 kB → 530.58 kB` and an
-// already-optimised image say so by staying dim rather than needing a column to explain it.
 const row = (label: string, before: number, after: number, style: Style): string =>
   `  ${label} ${style.size(kB(before))} ${dim('→')} ${(after < before ? style.gain : style.size)(kB(after))} ${style.size(pct(before, after))}`;
 
-// One renderer for all three build tables: they are the same shape, so the padding arithmetic and
-// the palette only have to be right once. Widths are measured on the plain name and never on the
+// One renderer for all three build tables. Widths are measured on the plain name and never on the
 // decorated one, since `padEnd` counts escape bytes as characters and would shift every column
-// right by the width of that row's own colour codes.
-// `count` defaults to one file per line, which is wrong for a table whose lines are buckets:
-// `dist/ total` has five rows standing for 22 files, and the label has to say 22.
+// right by the width of that row's own colour codes. `count` is for a table whose lines are
+// buckets rather than files, where the total label has to say how many files they stand for.
 export function table(
   log: Log,
   title: string,

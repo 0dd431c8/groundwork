@@ -5,10 +5,9 @@ import react from '@vitejs/plugin-react';
 // rewrites the committed src/routeTree.gen.ts.
 export default defineConfig({
   test: {
-    // Two suites with nothing in common but the runner: the app needs jsdom, the React
-    // plugin and the Testing Library setup, and the Vite plugins in `build/` need none of
-    // the three. `setupFiles` is not per-file, so this split is what keeps
-    // `localStorage.clear()` out of a Node test. Run one with `vitest --project build`.
+    // Two suites with nothing in common but the runner. `setupFiles` is per-project and not
+    // per-file, so this split is what keeps `localStorage.clear()` out of a Node test.
+    // Run one with `vitest --project build`.
     projects: [
       {
         plugins: [react()],

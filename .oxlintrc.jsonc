@@ -12,18 +12,16 @@
     "node",
     "react-perf",
   ],
-  // ESLint plugins, run through oxlint's JS bridge (alpha, not covered by semver). They cost
-  // 0.16s here (0.32s to 0.48s), since each starts a JS runtime beside the Rust linter. Names are
-  // aliases: `react`, `import`, `typescript`, `vitest` and the rest are reserved by the native
-  // Rust plugins, so a JS plugin needs a name of its own. Rules go in `rules` below by that
-  // alias; categories do not reach them.
+  // ESLint plugins, run through oxlint's JS bridge (alpha, not covered by semver). Names are
+  // aliases, since `react`, `import`, `typescript` and the rest are reserved by the native Rust
+  // plugins. Rules go in `rules` below by that alias; categories do not reach them.
   "jsPlugins": [
     { "name": "query", "specifier": "@tanstack/eslint-plugin-query" },
     { "name": "router", "specifier": "@tanstack/eslint-plugin-router" },
   ],
   "options": {
     // Runs the type-aware rules below against the real TypeScript program, which is the
-    // only tier that sees across a call boundary. Requires TypeScript 7. Costs ~0.1s.
+    // only tier that sees across a call boundary. Requires TypeScript 7.
     "typeAware": true,
   },
   "categories": {
@@ -80,8 +78,7 @@
     // The queryKey has to name everything the queryFn closes over, or two different fetches
     // share a cache entry. `prefer-query-options` is not in the plugin's recommended set; it
     // enforces the `queryOptions` in `<feature>.queries.ts` convention. `no-void-query-fn` is
-    // left out because it needs type information the JS bridge does not hand over, so it
-    // silently checks nothing.
+    // left out because it needs type information the JS bridge does not hand over.
     "query/exhaustive-deps": "error",
     "query/stable-query-client": "error",
     "query/no-rest-destructuring": "error",
@@ -100,7 +97,7 @@
 
     // The other three react-perf rules are hoist-a-constant fixes. This one's only remedy is
     // useCallback in every component that passes a handler, which buys nothing while the
-    // child is not memoised - `<Button onClick={() => step(-1)}>` is the shape it flags.
+    // child is not memoised.
     "react-perf/jsx-no-new-function-as-prop": "off",
 
     "import/no-cycle": "error",
@@ -125,11 +122,11 @@
       },
     ],
 
-    // Wrong under the automatic JSX runtime, and 44 of the 47 findings in `suspicious`.
+    // Wrong under the automatic JSX runtime.
     "react/react-in-jsx-scope": "off",
     // The CSS and jest-dom side-effect imports are correct code.
     "import/no-unassigned-import": "off",
-    // Wants `readonly` on every object parameter, React props included. 13 findings, no bugs.
+    // Wants `readonly` on every object parameter, React props included.
     "typescript/prefer-readonly-parameter-types": "off",
     // Without the option, `onClick={() => step(-1)}` needs a braced body just because
     // `step` returns void. The rest of the rule stays on.

@@ -20,7 +20,7 @@ type Compressed = Row & { br: number };
 // What a server sends: the `.br` where one was written, the file itself otherwise.
 const transfer = (r: Row): number => r.br ?? r.raw;
 
-// Reads only what it compresses: the 440 kB of font subsets are stat'd, never loaded.
+// Reads only what it compresses; everything else is stat'd and never loaded.
 export async function measure(outDir: string, name: string): Promise<Row | null> {
   const path = join(outDir, name);
   const info = await stat(path);

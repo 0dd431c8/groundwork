@@ -18,8 +18,8 @@ export function recorder(): Recorder {
   };
 }
 
-// `styleText` reads the environment on every call, so pinning it here is what keeps an
-// assertion on a table the same under a TTY, a pipe and CI alike.
+// `styleText` reads the environment on every call, so pin it or a table asserts differently
+// under a TTY than in CI.
 export function useColor(on: boolean): void {
   vi.stubEnv('NO_COLOR', on ? undefined : '1');
   vi.stubEnv('FORCE_COLOR', on ? '1' : undefined);
@@ -38,10 +38,9 @@ type Hooks = {
 };
 
 /**
- * Runs `configResolved` with the only two fields these plugins read, and hands back the
- * hooks a test drives by hand. Both assertions are the point of the helper: Vite types a
- * hook as function-or-object and gives it a plugin context and bundle arguments none of
- * this needs, and a whole `ResolvedConfig` cannot be stood up for two fields.
+ * Runs `configResolved` with the only two fields these plugins read, and hands back the hooks
+ * a test drives by hand. The assertions are the point: a whole `ResolvedConfig` cannot be
+ * stood up for two fields, and Vite types every hook as function-or-object.
  */
 export function start(plugin: Plugin, dir: string, log: Log): Hooks {
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion

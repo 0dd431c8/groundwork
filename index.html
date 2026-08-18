@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- Resolves the theme before first paint. Must stay inline and untyped: a module
-         is deferred, so the page would paint the wrong palette and correct itself.
-         `theme` is 'light' | 'dark'; absent means follow the OS. localStorage throws
-         in Safari private mode. -->
+    <!-- Resolves the theme before first paint. Must stay inline and untyped: a module is
+         deferred, so the page would paint the wrong palette and correct itself on mount.
+         `theme` is 'light' | 'dark'; absent means follow the OS. The catch is for
+         Safari private mode, where localStorage throws. -->
     <script>
       try {
         const stored = localStorage.getItem('theme');

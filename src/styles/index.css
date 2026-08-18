@@ -1,10 +1,7 @@
 /* `source(none)` turns off automatic detection, which scans every non-gitignored file in the
    repo: an English word in prose or in a code comment emits a utility and every breakpoint
-   media query that comes with it. "container" in a vite.config.ts comment cost 272 bytes, and
-   the docs and the vendored skill files were quietly adding 2.27 kB more. `@source not` is the
-   documented remedy but it cannot exclude AGENTS.md, which Tailwind reaches through the
-   CLAUDE.md symlink and then matches against neither name. Listing the two places a class name
-   can actually appear is both exact and immune to that. */
+   media query that comes with it. Listing the two places a class name can actually appear is
+   exact, and unlike `@source not` it cannot be defeated by a file reached through a symlink. */
 @import 'tailwindcss' source(none);
 @source '../**/*.{ts,tsx}';
 @source '../../index.html';
@@ -14,9 +11,9 @@
 @import '@fontsource-variable/noto-sans';
 @import '@fontsource-variable/playfair-display';
 
-/* The font imports above pull all 8 writing-system subsets (~440 KB of woff2 into
-   dist/assets), fetched per unicode-range so it costs dist size, not page weight.
-   To ship latin only: delete those two imports and uncomment the blocks below. */
+/* The font imports above pull all 8 writing-system subsets, fetched per unicode-range so it
+   costs build size, not page weight. To ship latin only: delete those two imports and
+   uncomment the blocks below. */
 /*
 @font-face {
   font-family: 'Noto Sans Variable';
