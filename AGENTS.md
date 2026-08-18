@@ -244,6 +244,17 @@ it does nothing for link previews.
   source is one line; the thing to avoid is going back to detection-by-default. Verify a change
   by putting a real utility in a doc and confirming the CSS does not grow, then in a component
   and confirming it does.
+- oxfmt sorts Tailwind classes itself, through `sortTailwindcss` in `.oxfmtrc.jsonc`. It is
+  prettier-plugin-tailwindcss's algorithm built into the formatter, so it costs no dependency
+  and no second pass. Both options it is given are load-bearing. `stylesheet` points at
+  `src/styles/index.css`; without it the `@theme inline` tokens are unknown classes, so
+  `bg-primary` and `text-primary-foreground` get parked at the front of the list rather than
+  sorted into it. `functions` names `cn` and `cva`, without which the class strings inside
+  those calls are left alone, and that is most of what a component writes.
+  `src/components/ui` is in `ignorePatterns`, so vendored shadcn output keeps the order
+  upstream shipped. `sortImports` is the other half of the same feature and is deliberately
+  off: it would rewrite the import block of 16 of the repo's source files, splitting type
+  imports off and inserting blank lines between groups.
 - Vendor chunking is set in `vite.config.ts` under `build.rolldownOptions.output.codeSplitting`.
   Groups match in order and the last one is a `node_modules` catch-all, so new packages land
   in a long-lived vendor chunk rather than in route chunks. The groups are deliberately
@@ -392,6 +403,19 @@ are `no-floating-promises`, `no-misused-promises` (an `async` function passed to
 `no-unnecessary-type-assertion`, `no-array-delete`, `prefer-promise-reject-errors`, and the
 `no-unsafe-*` set that stops `any` spreading out of an untyped edge.
 
+**JS plugins.** `jsPlugins` runs real ESLint plugins through oxlint's JS bridge, which is how
+the two TanStack plugins get in: `@tanstack/eslint-plugin-query` under the alias `query`, and
+`@tanstack/eslint-plugin-router` under `router`. The bridge is alpha and not covered by semver,
+and it costs 0.16s here, 0.32s to 0.48s over `src` and `build`, because each plugin starts a JS
+runtime beside the Rust linter. Four things to know before touching it. The native plugin names
+are reserved, `react`, `typescript`, `import`, `vitest` and the rest, so a JS plugin needs an
+alias, which is what the `{ name, specifier }` form is for and what rule names then use.
+Categories do not reach these rules, so every one is listed in `rules` by hand; the plugins' own
+`recommended` config is not readable from here. A rule that wants type information gets none:
+`no-void-query-fn` returns early when `parserServices` is missing and checks nothing, which is
+why it is left out rather than set to `"error"` and believed. And fixers do work, so
+`oxlint --fix` reorders a `useMutation` and the pre-commit hook fixes these like any other rule.
+
 **Escape hatches.** `no-explicit-any`, `no-non-null-assertion` (`!`), `no-console`, and
 `ban-ts-comment`: `@ts-ignore` is banned outright, `@ts-expect-error` needs a description and
 starts failing once the underlying problem is fixed.
@@ -412,6 +436,25 @@ inferred type that is subtly wrong becomes an error at the boundary rather than 
   into the server-state layer.
 - `import/no-cycle` is on. It is the backstop for direction mistakes the two patterns above
   cannot name, since most of them close a loop.
+- The `query/*` rules are the "Server state" section above made enforceable rather than left as
+  prose: `exhaustive-deps` on the `queryKey`, `stable-query-client`, `no-rest-destructuring`,
+  `no-unstable-deps`, and the two property-order rules. `prefer-query-options` is the one
+  addition beyond the plugin's recommended set, and it is what pins a query to `queryOptions`
+  in `<feature>.queries.ts` instead of an object literal at the call site.
+- `router/create-route-property-order` and `router/route-param-names` are the whole router
+  plugin. The first catches a `beforeLoad` written after the `loader` that reads its return.
+- `react-perf` is on except `jsx-no-new-function-as-prop`. The other three,
+  `jsx-no-jsx-as-prop`, `jsx-no-new-array-as-prop` and `jsx-no-new-object-as-prop`, are fixed
+  by hoisting a constant out of the component. The function one is not: its only remedy is
+  `useCallback` on every handler, which buys nothing while the child is not memoised. It fires
+  on three inline handlers in `src/features/counter/` today, all of them the same shape as
+  `onClick={() => step(-1)}`. Turn it on only together with memoising the components on the
+  receiving end.
+- `vitest/prefer-importing-vitest-globals` and `vitest/no-identical-title` are the two vitest
+  rules the enabled categories miss. The rest of what matters arrives through them already:
+  `expect-expect`, `no-focused-tests`, `valid-expect`, `no-conditional-expect`,
+  `no-conditional-in-test`, `no-disabled-tests`, `no-standalone-expect`, `valid-title` and
+  `no-commented-out-tests`.
 - oxlint has no `import/no-restricted-paths`; the above is built from `no-restricted-imports`
   patterns plus `overrides`. Two things to know before editing them. An override **replaces**
   this rule rather than merging, so the `*.state.ts` override repeats the `useEffect` entry and
@@ -426,9 +469,8 @@ findings `suspicious` reports; `import/no-unassigned-import` would flag the CSS 
 side-effect imports, which are correct; `prefer-readonly-parameter-types` wants `readonly` on
 every object parameter including React props, 13 findings and no bugs;
 `no-confusing-void-expression` keeps `ignoreArrowShorthand` so `onClick={() => step(-1)}`
-stays legal. Not enabled at all: the `style` category (oxfmt's job), `restriction` as a
-category (it bans `async`/`await`), and the `react-perf` plugin (its remedy is `useCallback`
-around children that are not memoised).
+stays legal. Not enabled at all: the `style` category (oxfmt's job) and `restriction` as a
+category (it bans `async`/`await`).
 
 `tsconfig.json` runs `strict` plus `exactOptionalPropertyTypes`, `noImplicitReturns`,
 `noPropertyAccessFromIndexSignature`, `noUncheckedSideEffectImports`, `erasableSyntaxOnly`,
@@ -492,7 +534,9 @@ with the dev server.
   effect. It repeats `resolve.tsconfigPaths`, which is one flag rather than an alias the two
   files would have to keep in sync.
 - Globals are off. Import `describe`/`it`/`expect` from `vitest` in every test file. This
-  avoids adding `vitest/globals` to the `types` array in `tsconfig.json`.
+  avoids adding `vitest/globals` to the `types` array in `tsconfig.json`, and
+  `vitest/prefer-importing-vitest-globals` errors on a file that forgets rather than leaving it
+  to fail at run time.
 - `src/test/setup.ts` loads the `@testing-library/jest-dom` matchers and calls `cleanup` in an
   `afterEach`, which Testing Library would otherwise register itself only under globals.
 - `.oxlintrc.jsonc` exempts `src/**/*.test.{ts,tsx}`, `src/test/**` and `build/**/*.test.ts`

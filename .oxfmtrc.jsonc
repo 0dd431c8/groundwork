@@ -1,6 +1,14 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "singleQuote": true,
+  // prettier-plugin-tailwindcss's algorithm, built in. `stylesheet` is what teaches it the
+  // `@theme inline` tokens: without it, `bg-primary` and friends are unknown classes and get
+  // parked at the front of the list instead of sorted in. `functions` covers `cn()` and
+  // `cva()` args, which are otherwise left alone.
+  "sortTailwindcss": {
+    "stylesheet": "src/styles/index.css",
+    "functions": ["cn", "cva"],
+  },
   // Vendored output, rewritten verbatim by `bunx shadcn add` and `bunx skills add`. Add a
   // directory here when you install the skills for another agent.
   "ignorePatterns": [

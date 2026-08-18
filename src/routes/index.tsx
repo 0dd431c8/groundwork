@@ -7,7 +7,7 @@ export const Route = createFileRoute('/')({
 
 function Home() {
   return (
-    <div className="min-h-dvh flex items-center justify-center">
+    <div className="flex min-h-dvh items-center justify-center">
       <CounterPanel />
     </div>
   );

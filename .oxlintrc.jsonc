@@ -10,6 +10,16 @@
     "jsx-a11y",
     "vitest",
     "node",
+    "react-perf",
+  ],
+  // ESLint plugins, run through oxlint's JS bridge (alpha, not covered by semver). They cost
+  // 0.16s here (0.32s to 0.48s), since each starts a JS runtime beside the Rust linter. Names are
+  // aliases: `react`, `import`, `typescript`, `vitest` and the rest are reserved by the native
+  // Rust plugins, so a JS plugin needs a name of its own. Rules go in `rules` below by that
+  // alias; categories do not reach them.
+  "jsPlugins": [
+    { "name": "query", "specifier": "@tanstack/eslint-plugin-query" },
+    { "name": "router", "specifier": "@tanstack/eslint-plugin-router" },
   ],
   "options": {
     // Runs the type-aware rules below against the real TypeScript program, which is the
@@ -23,7 +33,6 @@
     "perf": "error",
     // `style` is off: oxfmt already owns nearly all of it. `restriction` is off as a
     // category because it bans `async`/`await`; its two useful rules are listed below.
-    // `react-perf` is off: its remedy is useCallback around children that are not memoised.
   },
   "env": {
     "browser": true,
@@ -67,6 +76,32 @@
     "typescript/no-unsafe-argument": "error",
     "typescript/restrict-template-expressions": "error",
     "typescript/prefer-nullish-coalescing": "error",
+
+    // The queryKey has to name everything the queryFn closes over, or two different fetches
+    // share a cache entry. `prefer-query-options` is not in the plugin's recommended set; it
+    // enforces the `queryOptions` in `<feature>.queries.ts` convention. `no-void-query-fn` is
+    // left out because it needs type information the JS bridge does not hand over, so it
+    // silently checks nothing.
+    "query/exhaustive-deps": "error",
+    "query/stable-query-client": "error",
+    "query/no-rest-destructuring": "error",
+    "query/no-unstable-deps": "error",
+    "query/infinite-query-property-order": "error",
+    "query/mutation-property-order": "error",
+    "query/prefer-query-options": "error",
+
+    "router/create-route-property-order": "error",
+    "router/route-param-names": "error",
+
+    // Not reached by the categories above. The first is what makes `globals: false` in
+    // vitest.config.ts an error rather than a runtime surprise.
+    "vitest/prefer-importing-vitest-globals": "error",
+    "vitest/no-identical-title": "error",
+
+    // The other three react-perf rules are hoist-a-constant fixes. This one's only remedy is
+    // useCallback in every component that passes a handler, which buys nothing while the
+    // child is not memoised - `<Button onClick={() => step(-1)}>` is the shape it flags.
+    "react-perf/jsx-no-new-function-as-prop": "off",
 
     "import/no-cycle": "error",
     // Keep in sync with the src/features/*/*.state.ts override below: an override that
