@@ -278,6 +278,47 @@
       },
     },
     {
+      // Domain rules: constants, zod schemas and pure helpers. The bottom layer, so it
+      // imports nothing above it and every layer can share one definition of what is valid.
+      // The base entries are repeated because oxlint replaces the rule rather than merging.
+      "files": ["src/features/*/*.schema.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "react",
+                "message": "A schema is a plain value with no framework in it, which is what lets every layer above import it. Anything that needs a hook belongs in a component or in <feature>.queries.ts.",
+              },
+              {
+                "name": "jotai",
+                "message": "A schema describes what is valid, not what is stored. Atoms go in <feature>.state.ts, which may import this file.",
+              },
+              {
+                "name": "@tanstack/react-query",
+                "message": "The bottom layer never reaches up into the server-state layer. Query definitions go in <feature>.queries.ts.",
+              },
+              {
+                "name": "@tanstack/react-form",
+                "message": "The schema is the contract; the form that renders it is a component. Keep useForm in the <feature> .tsx file that owns the form.",
+              },
+            ],
+            "patterns": [
+              {
+                "group": ["@/features/*/*"],
+                "message": "Import a feature through its index (`@/features/counter`), not its internals. Inside a feature, import relatively (`./counter.state`).",
+              },
+              {
+                "group": ["./*.state", "./*.queries", "./*.api"],
+                "message": "Dependencies point one way: .schema.ts <- .state.ts <- .api.ts <- .queries.ts <- components. The schema layer is the bottom and imports none of them.",
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
       // Client state must not reach up into the server-state layer or the transport, and an
       // atom is a plain value with no React in it. The base entries are repeated because
       // oxlint replaces the rule rather than merging it; `react` is banned outright here,

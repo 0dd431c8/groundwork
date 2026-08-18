@@ -9,7 +9,9 @@ const formatTime = (savedAt: number) =>
 function SavedCountRow({ saved }: { saved: SavedCount }) {
   return (
     <li className="flex justify-between gap-8 py-1">
-      <span className="tabular-nums">{saved.value}</span>
+      <span>
+        {saved.label} <span className="tabular-nums">{saved.value}</span>
+      </span>
       <span className="text-muted-foreground tabular-nums">{formatTime(saved.savedAt)}</span>
     </li>
   );

@@ -7,9 +7,10 @@ import { CounterPanel } from './counter-panel';
 
 vi.mock('./counter.api');
 
-const savedCount = (id: string, value: number): SavedCount => ({
+const savedCount = (id: string, value: number, label = 'Morning'): SavedCount => ({
   id,
   value,
+  label,
   savedAt: Date.UTC(2026, 7, 16, 9, 0),
 });
 
@@ -20,11 +21,11 @@ describe('<CounterPanel />', () => {
     vi.mocked(saveCount).mockReset().mockResolvedValue(savedCount('9', 2));
   });
 
-  it('renders the counter, the save button and the list', async () => {
+  it('renders the counter, the save form and the list', async () => {
     renderWithProviders(<CounterPanel />);
 
     expect(screen.getByRole('status', { name: 'Count' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save count' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Label' })).toBeInTheDocument();
     expect(await screen.findByText('No counts saved yet.')).toBeInTheDocument();
   });
 
@@ -37,10 +38,11 @@ describe('<CounterPanel />', () => {
     await user.click(increment);
     await user.click(increment);
 
-    vi.mocked(fetchCounts).mockResolvedValue([savedCount('9', 2)]);
+    vi.mocked(fetchCounts).mockResolvedValue([savedCount('9', 2, 'Morning')]);
+    await user.type(screen.getByRole('textbox', { name: 'Label' }), 'Morning');
     await user.click(screen.getByRole('button', { name: 'Save count' }));
 
-    expect(saveCount).toHaveBeenCalledExactlyOnceWith(2);
-    expect(await screen.findByRole('list', { name: 'Saved counts' })).toHaveTextContent('2');
+    expect(saveCount).toHaveBeenCalledExactlyOnceWith({ value: 2, label: 'Morning' });
+    expect(await screen.findByRole('list', { name: 'Saved counts' })).toHaveTextContent('Morning');
   });
 });

@@ -1,33 +1,7 @@
 import { createStore } from 'jotai';
 import { describe, expect, it } from 'vitest';
-import {
-  canDecrementAtom,
-  canIncrementAtom,
-  clamp,
-  countAtom,
-  MAX_COUNT,
-  MIN_COUNT,
-  stepAtom,
-} from './counter.state';
-
-describe('clamp', () => {
-  it('passes through a value inside the range', () => {
-    expect(clamp(3, 0, 5)).toBe(3);
-  });
-
-  it('raises a value below the minimum', () => {
-    expect(clamp(-4, 0, 5)).toBe(0);
-  });
-
-  it('lowers a value above the maximum', () => {
-    expect(clamp(9, 0, 5)).toBe(5);
-  });
-
-  it('treats the bounds as inclusive', () => {
-    expect(clamp(MIN_COUNT, MIN_COUNT, MAX_COUNT)).toBe(MIN_COUNT);
-    expect(clamp(MAX_COUNT, MIN_COUNT, MAX_COUNT)).toBe(MAX_COUNT);
-  });
-});
+import { MAX_COUNT, MIN_COUNT } from './counter.schema';
+import { canDecrementAtom, canIncrementAtom, countAtom, stepAtom } from './counter.state';
 
 // Each case seeds countAtom: its initial value is read from localStorage at module load.
 describe('counter atoms', () => {

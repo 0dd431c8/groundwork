@@ -7,9 +7,10 @@ import { SavedCountList } from './count-list';
 // Only the transport is mocked, so the real query wiring is what gets exercised.
 vi.mock('./counter.api');
 
-const savedCount = (id: string, value: number): SavedCount => ({
+const savedCount = (id: string, value: number, label = 'Morning'): SavedCount => ({
   id,
   value,
+  label,
   savedAt: Date.UTC(2026, 7, 16, 9, 0),
 });
 
@@ -27,15 +28,18 @@ describe('<SavedCountList />', () => {
   });
 
   it('renders the counts once loaded', async () => {
-    vi.mocked(fetchCounts).mockResolvedValue([savedCount('1', 4), savedCount('2', 2)]);
+    vi.mocked(fetchCounts).mockResolvedValue([
+      savedCount('1', 4, 'Morning'),
+      savedCount('2', 2, 'Overnight'),
+    ]);
 
     renderWithProviders(<SavedCountList />);
 
     const list = await screen.findByRole('list', { name: 'Saved counts' });
     expect(list).toBeInTheDocument();
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
-    expect(list).toHaveTextContent('4');
-    expect(list).toHaveTextContent('2');
+    expect(list).toHaveTextContent('Morning 4');
+    expect(list).toHaveTextContent('Overnight 2');
   });
 
   it('shows the empty state when the server has no counts', async () => {

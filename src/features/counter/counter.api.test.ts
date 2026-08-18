@@ -32,10 +32,11 @@ describe('counter.api', () => {
   it('prepends a saved count and gives it a fresh id', async () => {
     const { fetchCounts, saveCount } = await freshApi();
 
-    const saved = await saveCount(3);
+    const saved = await saveCount({ value: 3, label: 'Afternoon' });
     const counts = await fetchCounts();
 
     expect(saved.value).toBe(3);
+    expect(saved.label).toBe('Afternoon');
     expect(saved.id).toBe('3');
     expect(counts.map((row) => row.value)).toEqual([3, 4, 2]);
   });

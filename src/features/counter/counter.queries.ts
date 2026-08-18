@@ -5,6 +5,7 @@ import {
   type UseMutationResult,
 } from '@tanstack/react-query';
 import { fetchCounts, saveCount, type SavedCount } from './counter.api';
+import type { SaveCountInput } from './counter.schema';
 
 export const countsKey = ['counts'] as const;
 
@@ -19,11 +20,11 @@ export const countsQuery = queryOptions({
  * passed to `mutate()` are dropped if the caller unmounts before the request settles,
  * so navigating away mid-save would skip the invalidation.
  */
-export function useSaveCount(): UseMutationResult<SavedCount, Error, number> {
+export function useSaveCount(): UseMutationResult<SavedCount, Error, SaveCountInput> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (value: number) => saveCount(value),
+    mutationFn: (input: SaveCountInput) => saveCount(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: countsKey }),
   });
 }

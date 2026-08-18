@@ -1,12 +1,6 @@
 import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
-
-export const MIN_COUNT = 0;
-export const MAX_COUNT = 5;
-
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
+import { clamp, MAX_COUNT, MIN_COUNT } from './counter.schema';
 
 // Without `getOnInit` the first render shows MIN_COUNT and corrects itself on mount.
 export const countAtom = atomWithStorage('counter:count', MIN_COUNT, undefined, {

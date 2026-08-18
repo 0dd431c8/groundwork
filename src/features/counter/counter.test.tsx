@@ -4,7 +4,8 @@ import { createStore } from 'jotai';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '@/test/render';
 import { Counter } from './counter';
-import { countAtom, MAX_COUNT, MIN_COUNT } from './counter.state';
+import { MAX_COUNT, MIN_COUNT } from './counter.schema';
+import { countAtom } from './counter.state';
 
 describe('<Counter />', () => {
   it('starts at the minimum with decrement disabled', () => {
