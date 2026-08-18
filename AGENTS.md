@@ -562,8 +562,13 @@ Vitest with jsdom and Testing Library. Prefer it over `bun test`: the app code i
 `.tsx`, CSS, and the `@/*` alias, which need the Vite transform pipeline that Vitest shares
 with the dev server.
 
-- `bun run test` (watch), `bun run test:ui` (`@vitest/ui` dashboard), `bun run test:coverage`
-  (v8 provider, report in `coverage/`). CI should call `bun run check`.
+- `bun run test` (watch) and the `vitest run` inside `bun run check` are the `app` project
+  only, since the `build` and `lint` suites test tooling that changes far less often than `src`
+  and the `lint` ones each spawn the oxlint binary. `bun run test:infra` (watch) is those two;
+  a CI job that wants them needs `vitest run --project build --project lint` as its own step,
+  because `bun run check` no longer covers it. `bun run test:ui` (`@vitest/ui` dashboard) and
+  `bun run test:coverage` (v8 provider, report in `coverage/`) still run all three: scoping
+  coverage would leave `build/**` uncovered against a threshold that counts it.
 - Coverage thresholds are set to 90 across the board, over `src` and `build` alike. The suite is
   at 100% once wiring is excluded from `coverage.include` (the mount call, the three `src/lib`
   singletons, the route files, feature `index.ts` barrels: all exercised only by a real browser;
@@ -579,8 +584,8 @@ with the dev server.
   `app` is jsdom plus the React plugin and `src/test/setup.ts`, `build` is `build/**/*.test.ts`
   and `lint` is `lint/**/*.test.ts`, both under plain node with no setup at all. `setupFiles`
   is per-project and not per-file, so a single project would run `cleanup()` and
-  `localStorage.clear()` against a Node test and throw. Run one on its own with
-  `vitest --project build`.
+  `localStorage.clear()` against a Node test and throw. `--project` takes a name per flag,
+  so `vitest --project build` runs one and `--project build --project lint` runs two.
 - The `lint` tests spawn the real `oxlint` binary against a fixture file and a config in a
   temporary directory, then parse `-f json`, because oxlint has no RuleTester. That is slower
   than an in-process check - hence `testTimeout: 20_000` - and it is the point: the rules are
