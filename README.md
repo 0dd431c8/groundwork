@@ -1,4 +1,4 @@
-# react-boilerplate
+# groundwork
 
 A React 19 and TypeScript starter template built on Vite 8, TanStack Router, TanStack Query,
 TanStack Form, Jotai, Tailwind CSS v4, shadcn and zod. The architecture rules are lint rules, so
@@ -48,12 +48,16 @@ Requires [Bun](https://bun.com) 1.3 or newer. Bun is the package manager and scr
 server and bundler are still Vite.
 
 ```sh
-bun install
+bun create 0dd431c8/groundwork my-app
+cd my-app
 bun run dev
 ```
 
-Then open the URL Vite prints. `bun install` also points `core.hooksPath` at `.githooks/`, so the
-pre-commit hook is live from the first commit.
+That clones the template, installs dependencies, and initialises a git repository. The `prepare`
+script points `core.hooksPath` at `.githooks/` along the way, so the pre-commit hook is live from
+the first commit. Open the URL Vite prints.
+
+Working in a clone rather than a new project? `bun install` does the same wiring.
 
 Before pushing anything:
 
