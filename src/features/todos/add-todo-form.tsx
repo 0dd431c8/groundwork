@@ -8,32 +8,56 @@ import { useAddTodo } from './todos.queries';
 import { addTodoFormSchema, MAX_TITLE_LENGTH } from './todos.schema';
 import { newTodoPriorityAtom } from './todos.state';
 
-type TitleFieldProps = {
+type FormApi = ReturnType<typeof useAddTodoForm>['form'];
+
+type TitleRowProps = {
+  form: FormApi;
   value: string;
   errors: ({ message?: string } | undefined)[];
   onChange: (raw: string) => void;
   onBlur: () => void;
 };
 
+// `form` is passed rather than the rendered button: react-perf bans JSX as a prop, and the
+// subscription has to sit inside the row so the action lands beside the field it submits.
+function SubmitButton({ form }: { form: FormApi }): JSX.Element {
+  return (
+    <form.Subscribe
+      selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
+    >
+      {(state) => (
+        <Button type="submit" size="sm" className="shrink-0" disabled={!state.canSubmit}>
+          {state.isSubmitting ? 'Adding...' : 'Add todo'}
+        </Button>
+      )}
+    </form.Subscribe>
+  );
+}
+
 // The shape every field in this repo copies: a real <label>, aria-invalid, and an error
 // element the input points at through aria-describedby.
-function TitleField({ value, errors, onChange, onBlur }: TitleFieldProps): JSX.Element {
+function TitleRow({ form, value, errors, onChange, onBlur }: TitleRowProps): JSX.Element {
   const invalid = errors.length > 0;
 
   return (
-    <Field data-invalid={invalid}>
+    <Field data-invalid={invalid} className="gap-1.5">
       <FieldLabel htmlFor="todo-title">Title</FieldLabel>
-      <Input
-        id="todo-title"
-        name="title"
-        type="text"
-        value={value}
-        maxLength={MAX_TITLE_LENGTH}
-        aria-invalid={invalid}
-        aria-describedby={invalid ? 'todo-title-error' : undefined}
-        onChange={(event) => onChange(event.target.value)}
-        onBlur={onBlur}
-      />
+      <div className="flex items-center gap-3">
+        <Input
+          id="todo-title"
+          name="title"
+          type="text"
+          placeholder="Rewrite the README"
+          value={value}
+          maxLength={MAX_TITLE_LENGTH}
+          aria-invalid={invalid}
+          aria-describedby={invalid ? 'todo-title-error' : undefined}
+          className="flex-1"
+          onChange={(event) => onChange(event.target.value)}
+          onBlur={onBlur}
+        />
+        <SubmitButton form={form} />
+      </div>
       <FieldError id="todo-title-error" errors={errors} />
     </Field>
   );
@@ -67,7 +91,7 @@ export function AddTodoForm(): JSX.Element {
 
   return (
     <form
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         void form.handleSubmit();
@@ -75,7 +99,8 @@ export function AddTodoForm(): JSX.Element {
     >
       <form.Field name="title">
         {(field) => (
-          <TitleField
+          <TitleRow
+            form={form}
             value={field.state.value}
             errors={field.state.meta.errors}
             onChange={(raw) => field.handleChange(raw)}
@@ -83,16 +108,6 @@ export function AddTodoForm(): JSX.Element {
           />
         )}
       </form.Field>
-
-      <form.Subscribe
-        selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
-      >
-        {(state) => (
-          <Button type="submit" size="sm" className="self-start" disabled={!state.canSubmit}>
-            {state.isSubmitting ? 'Adding...' : 'Add todo'}
-          </Button>
-        )}
-      </form.Subscribe>
 
       {isError && (
         <p role="alert" className="text-sm text-destructive">

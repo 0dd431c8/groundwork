@@ -71,11 +71,17 @@
   --muted-foreground: oklch(0.547 0.021 43.1);
   --accent: oklch(0.96 0.002 17.2);
   --accent-foreground: oklch(0.214 0.009 43.1);
-  --destructive: oklch(0.577 0.245 27.325);
+  /* Darker than the shadcn default red, which lands at 4.3:1 on white and misses AA for the
+     14px error copy it is used for. */
+  --destructive: oklch(0.51 0.21 27.3);
   --destructive-foreground: oklch(0.986 0.002 67.8);
   --border: oklch(0.922 0.005 34.3);
   --input: oklch(0.922 0.005 34.3);
-  --ring: oklch(0.714 0.014 41.2);
+  /* Every neutral above sits at hue ~41 with the chroma near zero. This is that same hue with
+     the chroma turned up, so it reads as this palette's own accent rather than a second one
+     bolted on. It has exactly two jobs: focus, and marking a high-priority row. */
+  --emphasis: oklch(0.5 0.145 41);
+  --ring: var(--emphasis);
   /* Ramp runs light -> dark; the .dark block inverts it so neither end sinks into the
      background. */
   --chart-1: oklch(0.714 0.014 41.2);
@@ -114,7 +120,9 @@
   --destructive-foreground: oklch(0.986 0.002 67.8);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.547 0.021 43.1);
+  /* Lifted, not the light value: hue 41 at L 0.5 disappears into a near-black background. */
+  --emphasis: oklch(0.72 0.14 45);
+  --ring: var(--emphasis);
   --chart-1: oklch(0.922 0.005 34.3);
   --chart-2: oklch(0.828 0.01 37);
   --chart-3: oklch(0.734 0.014 40);
@@ -151,6 +159,7 @@
   --color-border: var(--border);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive: var(--destructive);
+  --color-emphasis: var(--emphasis);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
