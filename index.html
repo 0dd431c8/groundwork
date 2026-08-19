@@ -6,15 +6,11 @@
 
     <!-- Resolves the theme before first paint. Must stay inline and untyped: a module is
          deferred, so the page would paint the wrong palette and correct itself on mount.
-         `theme` is 'light' | 'dark'; absent means follow the OS. The catch is for
-         Safari private mode, where localStorage throws. -->
+         `theme` is 'light' | 'dark'; absent means light. The catch is for Safari private
+         mode, where localStorage throws. -->
     <script>
       try {
-        const stored = localStorage.getItem('theme');
-        const dark = stored
-          ? stored === 'dark'
-          : matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.classList.toggle('dark', localStorage.getItem('theme') === 'dark');
       } catch {}
     </script>
 
@@ -27,9 +23,10 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     -->
 
-    <!-- Hand-mirrored from --background in src/styles/index.css; update both together. -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0a09" />
+    <!-- Hand-mirrored from --background in src/styles/index.css; update both together.
+         One value, not a prefers-color-scheme pair: the default is light whatever the OS
+         says, and a stored 'dark' is invisible to a media query. -->
+    <meta name="theme-color" content="#ffffff" />
 
     <title>React Boilerplate</title>
     <meta name="description" content="Vite + React 19 + TanStack Router single-page app." />

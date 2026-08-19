@@ -345,8 +345,8 @@ There is no server-side rendering here. See the [FAQ](#faq) if that is a require
 2. In `index.html`, replace the `https://example.com/` placeholders on `og:url` and `og:image` with
    real absolute URLs. Scrapers discard relative OG URLs, and an empty `content=""` is worse than an
    absent tag. Update the sitemap line in `public/robots.txt` while you are there.
-3. Keep the two `theme-color` metas in `index.html` in step with `--background` in
-   `src/styles/index.css`. They are hand-mirrored hex and drift silently.
+3. Keep the `theme-color` meta in `index.html` in step with the light `--background` in
+   `src/styles/index.css`. It is hand-mirrored hex and drifts silently.
 4. Add a real `favicon.ico` and `apple-touch-icon.png` to `public/` and uncomment the two links in
    `index.html`. Safari below 26 ignores the SVG icon.
 5. Rewrite this README and update `LICENSE` with your own name.

@@ -20,8 +20,8 @@ code reads them through `src/lib/env.ts`.
 2. In `index.html`, replace the `https://example.com/` placeholders on `og:url` and `og:image`
    with real absolute URLs. Scrapers discard relative OG URLs, and an empty `content=""` is
    worse than an absent tag.
-3. Keep the two `theme-color` metas in `index.html` in step with `--background` in
-   `src/styles/index.css`. They are hand-mirrored hex and drift silently.
+3. Keep the `theme-color` meta in `index.html` in step with the light `--background` in
+   `src/styles/index.css`. It is hand-mirrored hex and drifts silently.
 4. Rewrite `README.md`. Add real `favicon.ico` and `apple-touch-icon.png` to `public/`.
 5. Add each config value to `envSchema` in `src/lib/env.ts` **and** to `.env.example`.
 
@@ -297,7 +297,8 @@ paint instead of becoming `undefined` three layers down.
   palettes stay live.
 - Dark mode is a `.dark` class on `<html>`, set before first paint by an inline script in
   `index.html`. The contract is `localStorage['theme']` of `'light' | 'dark'`, absent meaning
-  follow the OS. A toggle is an `atomWithStorage` atom on that key and needs no HTML change.
+  light whatever the OS prefers. A toggle is an `atomWithStorage` atom on that key and needs no
+  HTML change.
 - `src/components/ui/` is shadcn CLI output. Add components with `bunx shadcn@latest add <name>`,
   and do not hand-edit them: a re-add overwrites the file. oxlint, oxfmt and coverage all skip
   that directory for exactly that reason, so check what the CLI installed and add anything new
