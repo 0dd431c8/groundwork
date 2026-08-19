@@ -26,8 +26,8 @@ type Rendered = RenderResult & { store: Store; queryClient: QueryClient };
  * `store.set(...)` and pass it in:
  *
  *     const store = createStore();
- *     store.set(countAtom, MAX_COUNT);
- *     renderWithProviders(<Counter />, { store });
+ *     store.set(filterAtom, 'done');
+ *     renderWithProviders(<TodoList />, { store });
  */
 export function renderWithProviders(
   ui: ReactElement,

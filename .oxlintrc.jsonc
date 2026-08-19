@@ -43,7 +43,10 @@
     "browser": true,
     "es2024": true,
   },
-  "ignorePatterns": ["dist", "src/routeTree.gen.ts"],
+  // Generated or vendored output, none of it hand-written and none of it hand-editable: a
+  // `bunx shadcn add` rewrites src/components/ui wholesale, so a lint error there has no fix
+  // that survives the next re-add. .oxfmtrc.jsonc and the coverage config draw the same line.
+  "ignorePatterns": ["dist", "src/routeTree.gen.ts", "src/components/ui"],
   "rules": {
     "max-lines": ["error", { "max": 400, "skipBlankLines": true, "skipComments": true }],
     "max-lines-per-function": [
@@ -95,8 +98,8 @@
     // understands what React actually guarantees.
     "react/react-compiler": "error",
     // Fast Refresh only reloads a module that exports components and nothing else. Off for
-    // `src/routes` and `src/components/ui` below; `allowExportNames` does not help there,
-    // because it exempts the export without exempting the local component beside it.
+    // `src/routes` below; `allowExportNames` does not help there, because it exempts the
+    // export without exempting the local component beside it.
     "react/only-export-components": "error",
     // `restriction` rules, so also not reached by the categories. All four are React 19 house
     // style with nothing in `src` violating them today.
@@ -170,7 +173,7 @@
         "patterns": [
           {
             "group": ["@/features/*/*"],
-            "message": "Import a feature through its index (`@/features/counter`), not its internals. Inside a feature, import relatively (`./counter.state`).",
+            "message": "Import a feature through its index (`@/features/<name>`), not its internals. Inside a feature, import relatively (`./<feature>.state`).",
           },
         ],
       },
@@ -269,15 +272,6 @@
       },
     },
     {
-      "files": ["src/components/ui/**"],
-      "rules": {
-        "no-restricted-imports": "off",
-        // `buttonVariants` next to `Button` is how shadcn ships it.
-        "react/only-export-components": "off",
-        "typescript/explicit-module-boundary-types": "off",
-      },
-    },
-    {
       // Domain rules: constants, zod schemas and pure helpers. The bottom layer, so it
       // imports nothing above it and every layer can share one definition of what is valid.
       // The base entries are repeated because oxlint replaces the rule rather than merging.
@@ -307,7 +301,7 @@
             "patterns": [
               {
                 "group": ["@/features/*/*"],
-                "message": "Import a feature through its index (`@/features/counter`), not its internals. Inside a feature, import relatively (`./counter.state`).",
+                "message": "Import a feature through its index (`@/features/<name>`), not its internals. Inside a feature, import relatively (`./<feature>.state`).",
               },
               {
                 "group": ["./*.state", "./*.queries", "./*.api"],
@@ -331,7 +325,7 @@
             "paths": [
               {
                 "name": "react",
-                "message": "Atoms are plain values with no React in them, which is what lets counter.state.test.ts drive them through a bare createStore(). Anything that needs a hook belongs in a component or in <feature>.queries.ts.",
+                "message": "Atoms are plain values with no React in them, which is what lets <feature>.state.test.ts drive them through a bare createStore(). Anything that needs a hook belongs in a component or in <feature>.queries.ts.",
               },
               {
                 "name": "@tanstack/react-query",
@@ -346,7 +340,7 @@
             "patterns": [
               {
                 "group": ["@/features/*/*"],
-                "message": "Import a feature through its index (`@/features/counter`), not its internals. Inside a feature, import relatively (`./counter.state`).",
+                "message": "Import a feature through its index (`@/features/<name>`), not its internals. Inside a feature, import relatively (`./<feature>.state`).",
               },
               {
                 "group": ["./*.queries", "./*.api"],
@@ -359,7 +353,7 @@
     },
     {
       // The transport: fetch and its types, nothing else. This is what keeps
-      // `vi.mock('./counter.api')` meaningful, since the real query wiring stays above it.
+      // `vi.mock('./<feature>.api')` meaningful, since the real query wiring stays above it.
       "files": ["src/features/*/*.api.ts"],
       "rules": {
         "no-restricted-imports": [
@@ -372,7 +366,7 @@
               },
               {
                 "name": "@tanstack/react-query",
-                "message": "The transport stays React Query free, which is what lets a test vi.mock('./counter.api') and still exercise the real queryOptions wiring. Query definitions go in <feature>.queries.ts.",
+                "message": "The transport stays React Query free, which is what lets a test vi.mock('./<feature>.api') and still exercise the real queryOptions wiring. Query definitions go in <feature>.queries.ts.",
               },
               {
                 "name": "jotai",
@@ -382,7 +376,7 @@
             "patterns": [
               {
                 "group": ["@/features/*/*"],
-                "message": "Import a feature through its index (`@/features/counter`), not its internals. Inside a feature, import relatively (`./counter.state`).",
+                "message": "Import a feature through its index (`@/features/<name>`), not its internals. Inside a feature, import relatively (`./<feature>.state`).",
               },
             ],
           },
@@ -422,13 +416,13 @@
               {
                 "name": "@tanstack/react-query",
                 "importNames": ["useMutation", "useQueryClient"],
-                "message": "A mutation gets a named hook in <feature>.queries.ts (`useSaveCount`), because what it invalidates is a fact about the data, not about the widget that triggered it - a component should never name a query key. `useQuery(countsQuery)` stays fine here.",
+                "message": "A mutation gets a named hook in <feature>.queries.ts, because what it invalidates is a fact about the data, not about the widget that triggered it - a component should never name a query key. Reading a query with `useQuery(<feature>Query)` stays fine here.",
               },
             ],
             "patterns": [
               {
                 "group": ["@/features/*/*"],
-                "message": "Import a feature through its index (`@/features/counter`), not its internals. Inside a feature, import relatively (`./counter.state`).",
+                "message": "Import a feature through its index (`@/features/<name>`), not its internals. Inside a feature, import relatively (`./<feature>.state`).",
               },
             ],
           },

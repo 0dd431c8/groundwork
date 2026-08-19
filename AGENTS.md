@@ -15,7 +15,7 @@ code reads them through `src/lib/env.ts`.
 
 ## Starting a new project
 
-1. Delete `src/features/counter/` and replace the body of `src/routes/index.tsx`. It is a
+1. Delete `src/features/todos/` and replace the body of `src/routes/index.tsx`. It is a
    worked example, not a dependency; nothing else imports it.
 2. In `index.html`, replace the `https://example.com/` placeholders on `og:url` and `og:image`
    with real absolute URLs. Scrapers discard relative OG URLs, and an empty `content=""` is
@@ -65,7 +65,7 @@ types or tests are broken. No CI is configured, so this command is the only gate
 4. Render it from a route in `src/routes/`.
 5. `bun run check`.
 
-Inside a feature import relatively (`./counter.state`), so the folder can be renamed without
+Inside a feature import relatively (`./<feature>.state`), so the folder can be renamed without
 editing its own internals. Crossing out of one, use `@/...`.
 
 When a feature outgrows flat, split it by sub-domain (`checkout/{cart,payment}/`), never by
@@ -94,19 +94,26 @@ Constants, zod schemas and pure helpers. The bottom layer: it imports zod and no
 which is what lets every layer above share one definition of what is valid.
 
 ```ts
-export const MAX_COUNT = 5;
+export const MAX_TITLE_LENGTH = 80;
 
-export const saveCountSchema = z.object({
-  value: z.number().int().min(0).max(MAX_COUNT),
-  label: z.string().trim().min(1, 'Give the count a name.').max(40),
+export const addTodoSchema = z.object({
+  title: z.string().trim().min(1, 'Give the todo a title.').max(MAX_TITLE_LENGTH),
+  priority: z.enum(['low', 'normal', 'high']),
 });
 
 // What the server sends back is a separate schema from what it accepts.
-export const savedCountSchema = saveCountSchema.extend({ id: z.string(), savedAt: z.number() });
+export const todoSchema = addTodoSchema.extend({
+  id: z.string(),
+  done: z.boolean(),
+  addedAt: z.number(),
+});
 
-export type SaveCountInput = z.infer<typeof saveCountSchema>;
-export type SavedCount = z.infer<typeof savedCountSchema>;
+export type AddTodoInput = z.infer<typeof addTodoSchema>;
+export type Todo = z.infer<typeof todoSchema>;
 ```
+
+Pure predicates belong here too, not in the component that calls them, so two callers cannot
+drift apart about what the rule is.
 
 ### `<feature>.state.ts`: client state (Jotai)
 
@@ -114,10 +121,16 @@ Atoms live in the feature that owns them, named with an `Atom` suffix. No React 
 a plain value, which is what lets tests drive it through a bare `createStore()`.
 
 ```ts
-export const countAtom = atomWithStorage('counter:count', 0, undefined, { getOnInit: true });
-export const canIncrementAtom = atom((get) => get(countAtom) < MAX_COUNT);
-export const stepAtom = atom(null, (get, set, delta: number) => {
-  set(countAtom, clamp(get(countAtom) + delta, 0, MAX_COUNT));
+export const filterAtom = atomWithStorage<TodoFilter>('todos:filter', 'all', undefined, {
+  getOnInit: true,
+});
+export const searchAtom = atom('');
+export const isViewNarrowedAtom = atom(
+  (get) => get(filterAtom) !== 'all' || get(searchAtom).trim() !== '',
+);
+export const clearViewAtom = atom(null, (_get, set) => {
+  set(filterAtom, 'all');
+  set(searchAtom, '');
 });
 ```
 
@@ -132,13 +145,13 @@ export const stepAtom = atom(null, (get, set, delta: number) => {
 ### `<feature>.api.ts`: transport
 
 Fetch and its types. The one layer with no framework in it, which is what keeps
-`vi.mock('./counter.api')` meaningful while the real query wiring still runs.
+`vi.mock('./<feature>.api')` meaningful while the real query wiring still runs.
 
 ```ts
-export async function saveCount(input: SaveCountInput): Promise<SavedCount> {
-  const response = await fetch('/api/counts', { method: 'POST', body: JSON.stringify(input) });
-  if (!response.ok) throw new Error('Could not save.');
-  return savedCountSchema.parse(await response.json());
+export async function addTodo(input: AddTodoInput): Promise<Todo> {
+  const response = await fetch('/api/todos', { method: 'POST', body: JSON.stringify(input) });
+  if (!response.ok) throw new Error('Could not add.');
+  return todoSchema.parse(await response.json());
 }
 ```
 
@@ -148,31 +161,31 @@ instead of a hopeful cast.
 ### `<feature>.queries.ts`: server state (React Query)
 
 ```ts
-export const countsKey = ['counts'] as const;
+export const todosKey = ['todos'] as const;
 
-export const countsQuery = queryOptions({
-  queryKey: countsKey,
-  // Wrapped, not `queryFn: fetchCounts`: React Query would pass its context object in.
-  queryFn: () => fetchCounts(),
+export const todosQuery = queryOptions({
+  queryKey: todosKey,
+  // Wrapped, not `queryFn: fetchTodos`: React Query would pass its context object in.
+  queryFn: () => fetchTodos(),
 });
 
-export function useSaveCount(): UseMutationResult<SavedCount, Error, SaveCountInput> {
+export function useAddTodo(): UseMutationResult<Todo, Error, AddTodoInput> {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: SaveCountInput) => saveCount(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: countsKey }),
+    mutationFn: (input: AddTodoInput) => addTodo(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: todosKey }),
   });
 }
 ```
 
 - Define queries with `queryOptions`, export the key separately, and pass the whole object to
-  `useQuery(countsQuery)`. An object literal at the call site is a lint error.
+  `useQuery(todosQuery)`. An object literal at the call site is a lint error.
 - Every mutation gets a named hook here, never an inline `useMutation` in a component. What a
   mutation invalidates is a fact about the data, not about the widget that triggered it, so a
   component must never name a query key.
 - Keep `onSuccess` on the hook options, not on the `mutate()` call: callbacks passed to
-  `mutate()` are dropped if the caller unmounts first, so navigating away mid-save would skip
-  the invalidation.
+  `mutate()` are dropped if the caller unmounts first, so a row that disappears mid-request
+  would skip the invalidation.
 - Always wrap the transport call. A bare reference silently receives React Query's context
   object as its first argument.
 
@@ -182,10 +195,10 @@ Named function declarations with an explicit `: JSX.Element`. No default exports
 
 ```ts
 // index.ts, the feature's public surface.
-export { CounterPanel } from './counter-panel';
+export { TodosPanel } from './todos-panel';
 ```
 
-`@/features/counter` is legal; `@/features/counter/count-list` is a lint error. What a feature
+`@/features/<name>` is legal; `@/features/<name>/<file>` is a lint error. What a feature
 exports is its own business: one component, several, a hook, a type, or nothing at all.
 
 ## Forms
@@ -194,12 +207,12 @@ TanStack Form with zod, through Standard Schema. No adapter package is needed.
 
 ```tsx
 const form = useForm({
-  defaultValues: { label: '' },
+  defaultValues: { title: '' },
   // On the hook, not on a <form.Field validators={{...}}> prop: that object would be new
   // every render and trip react-perf/jsx-no-new-object-as-prop.
-  validators: { onChange: saveCountFormSchema },
+  validators: { onChange: addTodoFormSchema },
   onSubmit: async ({ value, formApi }) => {
-    await mutateAsync({ value: count, label: value.label });
+    await mutateAsync({ title: value.title, priority });
     formApi.reset();
   },
 });
@@ -208,7 +221,7 @@ const form = useForm({
 ```
 
 - The schema lives in `<feature>.schema.ts`. If the form collects a subset of what the API
-  accepts, derive it (`saveCountSchema.pick({ label: true })`) so the two cannot drift.
+  accepts, derive it (`addTodoSchema.pick({ title: true })`) so the two cannot drift.
 - Submit through a mutation hook from `<feature>.queries.ts`.
 - **Never mirror state that lives elsewhere into a form field.** Read an atom or a query at
   submit time. `defaultValues` snapshots at mount, so a field seeded from an atom goes stale the
@@ -226,15 +239,21 @@ Handle every branch explicitly with early returns. Never render a component that
 exists.
 
 ```tsx
-const { data, isPending, isError } = useQuery(countsQuery);
+const { data, isPending, isError } = useQuery(todosQuery);
 
-if (isPending) return <p>Loading counts...</p>;
-if (isError) return <p role="alert">Could not load counts.</p>;
-if (data.length === 0) return <p>No counts saved yet.</p>;
-return <ul aria-label="Saved counts">...</ul>;
+if (isPending) return <p>Loading todos...</p>;
+if (isError) return <p role="alert">Could not load todos.</p>;
+if (data.length === 0) return <p>Nothing to do yet.</p>;
+
+// Client-side narrowing happens here, in render, from atoms. Nothing is copied either way.
+const visible = data.filter((todo) => matchesFilter(todo, filter));
+if (visible.length === 0) return <p>No todo matches this view.</p>;
+return <ul aria-label="Todos">...</ul>;
 ```
 
-An empty result is its own state with its own copy; an empty list is not a loading state. For
+An empty result is its own state with its own copy; an empty list is not a loading state. A
+list narrowed to nothing by a filter is a different state again, and deserves different copy
+and a way back out. For
 failures that should take out the whole route rather than one widget, use TanStack Router's
 `errorComponent`, `pendingComponent` and `notFoundComponent` route options.
 
@@ -280,7 +299,9 @@ paint instead of becoming `undefined` three layers down.
   `index.html`. The contract is `localStorage['theme']` of `'light' | 'dark'`, absent meaning
   follow the OS. A toggle is an `atomWithStorage` atom on that key and needs no HTML change.
 - `src/components/ui/` is shadcn CLI output. Add components with `bunx shadcn@latest add <name>`,
-  which installs missing deps itself, and do not hand-edit them: a re-add overwrites the file.
+  and do not hand-edit them: a re-add overwrites the file. oxlint, oxfmt and coverage all skip
+  that directory for exactly that reason, so check what the CLI installed and add anything new
+  to `package.json` yourself if it only landed in `node_modules`.
   `src/components/` is for components shared across features; anything used by one feature
   belongs in that feature.
 
@@ -294,7 +315,7 @@ rather than shipping.
 - Invalid fields get `aria-invalid` plus `aria-describedby` pointing at the message element.
 - Error text gets `role="alert"`.
 - Icon-only buttons need an `aria-label`.
-- Give lists an accessible name (`aria-label="Saved counts"`) when the page could hold more
+- Give lists an accessible name (`aria-label="Todos"`) when the page could hold more
   than one.
 - Every `<button>` needs an explicit `type`. Inside a form, an untyped button submits it.
 
@@ -312,13 +333,13 @@ and the `@/*` alias, which need the Vite transform pipeline Vitest shares with t
 
 ```tsx
 const store = createStore();
-store.set(countAtom, 3);
-renderWithProviders(<SaveCountForm />, { store });
+store.set(filterAtom, 'done');
+renderWithProviders(<TodoList />, { store });
 ```
 
 - **Mock the feature's `.api.ts` with `vi.mock`, never the query definitions.** That keeps the
   real `queryOptions` wiring under test instead of a stub of it.
-- Query by role and accessible name (`getByRole('button', { name: 'Save count' })`). Prefer
+- Query by role and accessible name (`getByRole('button', { name: 'Add todo' })`). Prefer
   `findBy*` over `waitFor` plus `getBy*`, and keep one assertion per `waitFor`.
 - Coverage thresholds are 90 across the board. Treat that as a floor against a feature landing
   with no tests, not as a quality bar. Raise it, never quietly lower it. If something is

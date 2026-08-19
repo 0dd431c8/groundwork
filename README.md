@@ -70,8 +70,8 @@ so this is the gate.
 
 ## Why this starter
 
-- Importing `./counter.queries` from a `.state.ts` file, or `@/features/counter/count-list` instead
-  of `@/features/counter`, is a lint error carrying an explanation. A style guide can drift away
+- Importing `./<feature>.queries` from a `.state.ts` file, or `@/features/<name>/<file>` instead
+  of `@/features/<name>`, is a lint error carrying an explanation. A style guide can drift away
   from the code it describes. `.oxlintrc.jsonc` cannot.
 - oxlint runs its type-aware rules against the real TypeScript program, so a floating promise or a
   React API that upstream deprecated last week fails the build. You find out on the version bump,
@@ -84,9 +84,11 @@ so this is the gate.
   the escape hatch wants a written reason.
 - Text assets come out brotli-precompressed, images are re-encoded through sharp and svgo, and the
   build prints a table of what it all weighs.
-- `src/features/counter/` shows every layer doing its job: a schema, atoms, a transport, a query, a
-  mutation, a validated form, and a list with real loading and error states. Every file has a test
-  beside it. Nothing else imports the folder, so deleting it is one line.
+- `src/features/todos/` shows every layer doing its job: a schema, atoms, a transport, three
+  mutations, a validated form, and a list with real loading, error, empty and filtered-to-nothing
+  states. The list reads the server collection and the client-side filter in the same component
+  without either one absorbing the other, which is the rule the whole layout is built around.
+  Every file has a test beside it. Nothing else imports the folder, so deleting it is one line.
 
 ## Built for coding agents
 
@@ -100,9 +102,9 @@ linter.
   convention read the same document, so the guidance cannot fork per tool.
 - The linter does not say "unexpected import". It says:
 
-  > A mutation gets a named hook in `<feature>.queries.ts` (`useSaveCount`), because what it
-  > invalidates is a fact about the data, not about the widget that triggered it - a component
-  > should never name a query key. `useQuery(countsQuery)` stays fine here.
+  > A mutation gets a named hook in `<feature>.queries.ts`, because what it invalidates is a fact
+  > about the data, not about the widget that triggered it - a component should never name a
+  > query key. Reading a query with `useQuery(<feature>Query)` stays fine here.
 
   An agent that reads its own tool output takes the correction in the same turn, rather than in a
   review comment three days later.
@@ -150,7 +152,7 @@ source files. After that it splits by sub-domain, so `checkout/{cart,payment}/` 
 `checkout/{components,hooks,state}/`. Splitting by technical type inside a feature just recreates
 one level down the layout this structure exists to avoid.
 
-Inside a feature, imports are relative (`./counter.state`). Rename the folder and its internals
+Inside a feature, imports are relative (`./<feature>.state`). Rename the folder and its internals
 keep working. Crossing out of one, use the `@/...` alias.
 
 ### The layer chain
@@ -170,7 +172,7 @@ Dependencies point one way, and the linter enforces every arrow:
 | `*.tsx`       | components                                          | `useEffect`, Context, `useMutation`, `useQueryClient`  |
 | `index.ts`    | the feature's public surface                        | nothing new                                            |
 
-`@/features/counter` is a legal import. `@/features/counter/count-list` is a lint error. What a
+`@/features/<name>` is a legal import. `@/features/<name>/<file>` is a lint error. What a
 feature exposes therefore stays that feature's own decision.
 
 ### Client state and server state
@@ -184,13 +186,17 @@ Anything computed from other state is a derived atom, never state kept in sync b
 what makes the `useEffect` ban affordable, since the common reason to reach for an effect is gone.
 
 ```ts
-// counter.state.ts
-export const countAtom = atomWithStorage('counter:count', MIN_COUNT, undefined, {
+// todos.state.ts. Not one todo lives here: the list belongs to the server.
+export const filterAtom = atomWithStorage<TodoFilter>('todos:filter', 'all', undefined, {
   getOnInit: true,
 });
-export const canIncrementAtom = atom((get) => get(countAtom) < MAX_COUNT);
-export const stepAtom = atom(null, (get, set, delta: number) => {
-  set(countAtom, clamp(get(countAtom) + delta, MIN_COUNT, MAX_COUNT));
+export const searchAtom = atom('');
+export const isViewNarrowedAtom = atom(
+  (get) => get(filterAtom) !== 'all' || get(searchAtom).trim() !== '',
+);
+export const clearViewAtom = atom(null, (_get, set) => {
+  set(filterAtom, 'all');
+  set(searchAtom, '');
 });
 ```
 
@@ -245,8 +251,8 @@ next to the file under test.
 
   ```tsx
   const store = createStore();
-  store.set(countAtom, 3);
-  renderWithProviders(<SaveCountForm />, { store });
+  store.set(filterAtom, 'done');
+  renderWithProviders(<TodoList />, { store });
   ```
 
 - Mock the feature's `.api.ts` and leave the query definitions alone. That keeps the real
@@ -334,7 +340,7 @@ There is no server-side rendering here. See the [FAQ](#faq) if that is a require
 
 ## Starting your own project
 
-1. Delete `src/features/counter/` and replace the body of `src/routes/index.tsx`. It is a worked
+1. Delete `src/features/todos/` and replace the body of `src/routes/index.tsx`. It is a worked
    example, not a dependency; nothing else imports it.
 2. In `index.html`, replace the `https://example.com/` placeholders on `og:url` and `og:image` with
    real absolute URLs. Scrapers discard relative OG URLs, and an empty `content=""` is worse than an
@@ -403,10 +409,11 @@ Claude Code respectively. If you add another agent, add its config directory to 
 bunx shadcn@latest add dialog
 ```
 
-It installs any missing dependencies itself and writes into `src/components/ui/`, which is treated
-as generated output. Do not hand-edit those files, since a re-add overwrites them. Components shared
-across features go in `src/components/`; anything used by exactly one feature belongs in that
-feature's folder.
+It writes into `src/components/ui/`, which is treated as generated output: oxlint, oxfmt and the
+coverage config all skip that directory, because a lint error in a file you must not hand-edit has
+no fix that survives the next re-add. Check what the CLI pulled in and add anything new to
+`package.json` yourself if it only landed in `node_modules`. Components shared across features go
+in `src/components/`; anything used by exactly one feature belongs in that feature's folder.
 
 ### Where do I put a component two features share?
 
@@ -416,7 +423,7 @@ only, so a module there that names a feature is in the wrong place.
 
 ### Is there a live demo?
 
-No. The example feature's transport (`src/features/counter/counter.api.ts`) is an in-memory
+No. The example feature's transport (`src/features/todos/todos.api.ts`) is an in-memory
 stand-in for a server, so `bun run dev` gives you the full loop, including loading and error states,
 with no backend to run.
 
