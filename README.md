@@ -114,13 +114,17 @@ linter.
   task.
 - Tests sit next to the code they cover. The file to change and the file that proves it still
   works turn up in the same directory listing.
-- `.mcp.json` and `opencode.json` register the [shadcn MCP server](https://ui.shadcn.com), so an
-  agent can search the registry for a component instead of guessing at one.
-- `.agents/skills/jotai/` and `.claude/skills/jotai/` carry the
-  [Jotai skill](https://github.com/jotaijs/jotai-skills), pinned by `skills-lock.json`. Everyone's
-  agent gets the same Jotai guidance regardless of what they have installed globally.
+- Two pieces of agent config ship with the repo. `.mcp.json` and `opencode.json` register the
+  [shadcn MCP server](https://ui.shadcn.com), which lets an agent search the component registry
+  rather than guess at it. `.agents/skills/` and `.claude/skills/` carry the
+  [Jotai skill](https://github.com/jotaijs/jotai-skills), pinned by `skills-lock.json`, because
+  nothing published teaches Jotai.
 
-Nothing here is agent-specific. A new engineer gets the same feedback on their first afternoon.
+Nothing else is included. The bar for adding something is whether it knows this stack specifically:
+an MCP server for this component registry, a skill for this state library. Your editor config and
+model choice stay yours.
+
+A new engineer gets the same feedback on their first afternoon, so none of this is agent-only.
 
 ## Architecture
 
