@@ -57,6 +57,24 @@ types or tests are broken. No CI is configured, so this command is the only gate
 `build/`, `lint/` and `*.config.ts` are a separate TypeScript project. They cannot import from
 `src` or use the `@/*` alias.
 
+## Reuse before writing
+
+Grep before you write. Every new component, helper or file starts with a search for one that
+already does the job, because two implementations of one idea drift and then neither is the
+answer.
+
+- Before building any UI pattern (a form field, an empty state, a filter bar, a segmented
+  control), search `src/` for it. If something close exists, use it or widen it with a prop.
+- **Never copy a component to change three lines.** Lift the difference into a prop, or pull the
+  shared part out. `src/features/todos/segmented-field.tsx` is the worked example: the priority
+  picker and the filter bar are one control given two sets of options.
+- A pattern two features need moves to `src/components/`. A primitive everything needs is a
+  shadcn component in `src/components/ui/`, added with the CLI rather than written by hand.
+- The same rule outside the UI. A second caller for a helper means it moves up to the layer both
+  callers can import, not that it gets pasted twice.
+- Generalising is not guessing. Wait for the second real caller, then extract from the two you
+  have, so the shape comes from use and not from a prediction.
+
 ## Adding a feature
 
 1. Create `src/features/<name>/`. Keep it flat until roughly 15 to 20 source files.
@@ -299,6 +317,12 @@ paint instead of becoming `undefined` three layers down.
   `index.html`. The contract is `localStorage['theme']` of `'light' | 'dark'`, absent meaning
   light whatever the OS prefers. A toggle is an `atomWithStorage` atom on that key and needs no
   HTML change.
+- **Never hand-roll a control `src/components/ui/` already provides.** `Button`, not `<button>`;
+  `Input`, not `<input>`; the same for `Label`, `Checkbox`, `Separator` and the `Field` family.
+  They carry the focus rings, disabled states and token colours, and a raw element drops all
+  three without a word. If the primitive is missing, `bunx shadcn@latest add <name>`.
+- Elements with no component behind them (`<ul>`, `<form>`, `<fieldset>`, `<p>`, `<span>`) stay
+  raw. The ban is on re-implementing a control, not on HTML.
 - `src/components/ui/` is shadcn CLI output. Add components with `bunx shadcn@latest add <name>`,
   and do not hand-edit them: a re-add overwrites the file. oxlint, oxfmt and coverage all skip
   that directory for exactly that reason, so check what the CLI installed and add anything new
@@ -311,14 +335,16 @@ paint instead of becoming `undefined` three layers down.
 `jsx-a11y` is on and tests query by role and name, so an accessibility regression fails the suite
 rather than shipping.
 
-- Reach for the semantic element first: `<button>`, `<label>`, `<ul>`, `<output>`.
+- Reach for the semantic element first, through its component where one exists: `Button` over
+  a clickable `<div>`, `Label` over a floating `<span>`, `<ul>` and `<output>` over neither.
 - Every input needs a real `<label htmlFor>` and a matching `id`.
 - Invalid fields get `aria-invalid` plus `aria-describedby` pointing at the message element.
 - Error text gets `role="alert"`.
 - Icon-only buttons need an `aria-label`.
 - Give lists an accessible name (`aria-label="Todos"`) when the page could hold more
   than one.
-- Every `<button>` needs an explicit `type`. Inside a form, an untyped button submits it.
+- Every `Button` needs an explicit `type`. It renders a bare `<button>`, so inside a form an
+  untyped one submits it.
 
 ## Testing
 
