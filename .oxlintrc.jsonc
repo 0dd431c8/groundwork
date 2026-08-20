@@ -24,6 +24,9 @@
     // cannot load here, because it pulls in ts-api-utils, which reads `ts.TypeFlags` at module
     // scope and TypeScript 7 does not have one. See lint/dry.ts.
     { "name": "dry", "specifier": "./lint/dry.ts" },
+    // Local because the shape of the rule is local: what counts as a raw element depends on
+    // what src/components/ui holds. See lint/ui.ts.
+    { "name": "ui", "specifier": "./lint/ui.ts" },
     // Neither name is reserved, so these two need no alias. Testing Library is in oxlint's
     // JS-plugin conformance suite (17,016 cases, all passing), so the bridge is not the risk
     // here that its alpha label suggests.
@@ -111,34 +114,13 @@
     "react/no-danger": "error",
     "react/no-clone-element": "error",
     "react/prefer-function-component": "error",
-    // The design system is the only source of controls. A raw <button> or <input> renders
-    // without the focus ring, the disabled state and the token colours the component carries,
-    // and nothing in the markup says so. src/components/ui is in ignorePatterns above, so the
-    // primitives themselves are exempt. Structural elements are deliberately absent: <ul>,
-    // <form> and <fieldset> have no component behind them and stay raw.
-    "react/forbid-elements": [
-      "error",
-      {
-        "forbid": [
-          {
-            "element": "button",
-            "message": "Use `Button` from @/components/ui/button. A bare <button> misses the focus ring, the disabled state and the token colours.",
-          },
-          {
-            "element": "input",
-            "message": "Use `Input` from @/components/ui/input, or `Checkbox` for a checkbox.",
-          },
-          {
-            "element": "textarea",
-            "message": "There is no textarea primitive yet. Add one with `bunx shadcn@latest add textarea` rather than styling a bare element.",
-          },
-          {
-            "element": "select",
-            "message": "There is no select primitive yet. Add one with `bunx shadcn@latest add select` rather than styling a bare element.",
-          },
-        ],
-      },
-    ],
+    // Design system rule, in lint/ui.ts rather than react/forbid-elements: a list of banned
+    // elements is right only until src/components/ui grows a component nobody remembered to
+    // ban the element for. This one allows structure and rejects the rest, so a
+    // `bunx shadcn add textarea` needs no edit here, and a raw control fails on the day it is
+    // written whether or not its component exists yet. src/components/ui is in ignorePatterns
+    // above, so the primitives themselves are exempt.
+    "ui/no-raw-element": "error",
 
     // The queryKey has to name everything the queryFn closes over, or two different fetches
     // share a cache entry. `prefer-query-options` is not in the plugin's recommended set; it

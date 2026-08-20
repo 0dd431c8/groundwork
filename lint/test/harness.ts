@@ -10,6 +10,7 @@ const projectConfig = join(repo, '.oxlintrc.jsonc');
 const plugins = [
   { name: 'jotai', specifier: join(repo, 'lint', 'jotai.ts') },
   { name: 'dry', specifier: join(repo, 'lint', 'dry.ts') },
+  { name: 'ui', specifier: join(repo, 'lint', 'ui.ts') },
 ];
 
 export type Finding = { rule: string; message: string; help: string; line: number };
@@ -40,7 +41,7 @@ export async function lint(
   const config = {
     jsPlugins: plugins,
     // Only the rules under test: inheriting the repo's own config would mix its findings in.
-    // Registering both local plugins costs nothing: a rule `rules` does not name never runs.
+    // Registering every local plugin costs nothing: a rule `rules` does not name never runs.
     plugins: [],
     categories: {},
     rules,

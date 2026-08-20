@@ -2,35 +2,35 @@ import { describe, expect, it } from 'vitest';
 import { type Finding, lintWithProjectConfig } from './test/harness.ts';
 
 /**
- * Rules that live in .oxlintrc.jsonc rather than in a plugin. A fixture outside the tsconfig
- * program also trips the type-aware rules, so each case keeps only the codes it came for.
+ * That the shipped .oxlintrc.jsonc turns a rule on, which is the half a plugin's own tests
+ * cannot cover: a rule nobody enables passes every case in lint/ui.test.ts and reports nothing
+ * on the repo. A fixture outside the tsconfig program also trips the type-aware rules, so each
+ * case keeps only the code it came for.
  */
 function only(findings: Finding[], rule: string): number[] {
   return findings.filter((finding) => finding.rule === rule).map((finding) => finding.line);
 }
 
-const FORBID = 'react(forbid-elements)';
+const RAW = 'ui(no-raw-element)';
 
-describe('react/forbid-elements', () => {
-  it('rejects every raw control the design system covers', async () => {
+describe('ui/no-raw-element', () => {
+  it('is on, and rejects a raw control', async () => {
     const found = await lintWithProjectConfig(
       `export function Widget(): null {
          return (
            <div>
              <button type="button">go</button>
              <input />
-             <textarea />
-             <select />
+             <label htmlFor="x">name</label>
            </div>
          );
        }`,
     );
 
-    expect(only(found, FORBID)).toEqual([4, 5, 6, 7]);
-    expect(found.find((finding) => finding.rule === FORBID)?.help).toContain('`Button`');
+    expect(only(found, RAW)).toEqual([4, 5, 6]);
   });
 
-  it('leaves structural elements alone, since no component stands behind them', async () => {
+  it('leaves the structure the repo already renders alone', async () => {
     const found = await lintWithProjectConfig(
       `export function Widget(): null {
          return (
@@ -45,6 +45,6 @@ describe('react/forbid-elements', () => {
        }`,
     );
 
-    expect(only(found, FORBID)).toEqual([]);
+    expect(only(found, RAW)).toEqual([]);
   });
 });

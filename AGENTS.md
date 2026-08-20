@@ -53,7 +53,7 @@ types or tests are broken. No CI is configured, so this command is the only gate
 | `src/test/`            | `render.tsx` (`renderWithProviders`) and `setup.ts`.                                                                                       |
 | `public/`              | Copied to `dist/` verbatim, for files needing an exact name at a known URL. Anything importable belongs in `src/` so it gets hashed.       |
 | `build/`               | Vite plugins `vite.config.ts` imports (brotli, image optimisation, size tables).                                                           |
-| `lint/`                | The local oxlint plugins `jotai.ts` and `dry.ts`, loaded through `jsPlugins`, and the ESTree shapes they share in `types.ts`.              |
+| `lint/`                | The local oxlint plugins `jotai.ts`, `dry.ts` and `ui.ts`, loaded through `jsPlugins`, and the ESTree shapes they share in `types.ts`.     |
 
 `build/`, `lint/` and `*.config.ts` are a separate TypeScript project. They cannot import from
 `src` or use the `@/*` alias.
@@ -327,8 +327,11 @@ paint instead of becoming `undefined` three layers down.
   `Input`, not `<input>`; the same for `Label`, `Checkbox`, `Separator` and the `Field` family.
   They carry the focus rings, disabled states and token colours, and a raw element drops all
   three without a word. If the primitive is missing, `bunx shadcn@latest add <name>`.
-- Elements with no component behind them (`<ul>`, `<form>`, `<fieldset>`, `<p>`, `<span>`) stay
-  raw. The ban is on re-implementing a control, not on HTML.
+- `ui/no-raw-element` enforces this from the other side: structure is allowed and every other
+  element is an error, so a control fails before its component exists and adding a primitive
+  needs no config change. Layout, text, lists, `<form>`, `<fieldset>`, `<legend>`, `<output>`,
+  images and SVG stay raw. Anything else is a control until `ALLOWED` in `lint/ui.ts` says
+  otherwise, and the entry wants a reason next to it.
 - `src/components/ui/` is shadcn CLI output. Add components with `bunx shadcn@latest add <name>`,
   and do not hand-edit them: a re-add overwrites the file. oxlint, oxfmt and coverage all skip
   that directory for exactly that reason, so check what the CLI installed and add anything new
@@ -414,8 +417,11 @@ base rule means editing all four copies.
 - `react-perf` bans new objects, arrays and JSX as props. Hoist a constant out of the component.
   New functions as props are allowed.
 - `import/no-cycle`, the backstop for direction mistakes the path patterns cannot name.
-- `react/forbid-elements` rejects `<button>`, `<input>`, `<textarea>` and `<select>`, naming the
-  component to use instead. `src/components/ui` is exempt through `ignorePatterns`.
+- `ui/no-raw-element`, from `lint/ui.ts`: every JSX element not in its structural allowlist is
+  an error naming the component to use, or the `bunx shadcn@latest add` that would create it.
+  `react/forbid-elements` does the same job from a list of banned elements and is not used,
+  because that list is right only until a primitive lands that nobody remembered to add to it.
+  `src/components/ui` is exempt through `ignorePatterns`.
 - `dry/no-identical-functions`, from `lint/dry.ts`, because eslint-plugin-sonarjs cannot load
   under TypeScript 7: it pulls in ts-api-utils, which reads a `ts.TypeFlags` that no longer
   exists. Off in test files, where two cases that set up alike and assert differently are two
