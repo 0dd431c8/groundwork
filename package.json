@@ -10,12 +10,13 @@
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
+    "dupes": "jscpd",
     "test": "vitest --project app",
     "test:infra": "vitest --project build --project lint",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "typecheck": "tsc -b",
-    "check": "bun run format:check && bun run lint && bun run typecheck && vitest run --project app"
+    "check": "bun run format:check && bun run lint && bun run dupes && bun run typecheck && vitest run --project app"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -53,6 +54,7 @@
     "@vitest/ui": "^4.1.10",
     "eslint-plugin-jest-dom": "^5.10.1",
     "eslint-plugin-testing-library": "^7.16.2",
+    "jscpd": "^5.0.16",
     "jsdom": "^30.0.1",
     "oxfmt": "^0.63.0",
     "oxlint": "^1.78.0",

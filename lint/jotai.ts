@@ -4,37 +4,11 @@
  * The bridge hands over no type information, so every check is syntactic.
  */
 
-/**
- * Only the fields these rules touch, all optional, so reading one never needs a cast. Names
- * and shapes follow ESTree, which is what the bridge hands over.
- */
-type Node = {
-  type: string;
-  parent?: Node | null | undefined;
-  callee?: Node | undefined;
-  elements?: (Node | null)[] | undefined;
-  id?: Node | null | undefined;
-  init?: Node | null | undefined;
-  imported?: Node | undefined;
-  local?: Node | undefined;
-  name?: string | undefined;
-  source?: Node | undefined;
-  specifiers?: Node[] | undefined;
-  value?: unknown;
-};
+import type { BaseContext, Node, Rule } from './types.ts';
 
 type Options = { suffixes?: string[] } | undefined;
 
-type Context = {
-  options: readonly Options[];
-  report: (descriptor: { message: string; node: Node }) => void;
-};
-
-type Rule = {
-  // `schema` is not decoration: oxlint rejects options outright for a rule without one.
-  meta?: { docs?: { description: string }; schema?: unknown[] };
-  create: (context: Context) => Record<string, (node: Node) => void>;
-};
+type Context = BaseContext & { options: readonly Options[] };
 
 // Everything that returns an atom config. `atomFamily` is here too: building a family per
 // render is the same bug, even though what it returns is a function rather than an atom.
@@ -135,7 +109,7 @@ function reportIfUnstable(context: Context, call: Node, factory: string): void {
   }
 }
 
-const noAtomInRender: Rule = {
+const noAtomInRender: Rule<Context> = {
   meta: { docs: { description: 'Disallow creating an atom during render without memoizing it' } },
   create(context) {
     const factories = new Map<string, string>();
@@ -184,7 +158,7 @@ function reportWideHook(context: Context, declarator: Node, locals: Set<string>)
   });
 }
 
-const preferNarrowHook: Rule = {
+const preferNarrowHook: Rule<Context> = {
   meta: { docs: { description: 'Prefer useAtomValue or useSetAtom over a half-used useAtom' } },
   create(context) {
     const imports = new Map<string, string>();
@@ -229,7 +203,7 @@ function reportBadName(
   });
 }
 
-const atomSuffix: Rule = {
+const atomSuffix: Rule<Context> = {
   meta: {
     docs: { description: 'Require module-scope atoms to be named with an Atom suffix' },
     schema: [

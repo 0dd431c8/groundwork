@@ -1,0 +1,16 @@
+{
+  "path": ["src", "build", "lint"],
+  "format": ["typescript", "tsx"],
+  "minTokens": 50,
+  "threshold": 0,
+  "reporters": ["consoleFull"],
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "src/test/**",
+    "src/components/ui/**",
+    "src/routeTree.gen.ts",
+    "build/test/**",
+    "lint/test/**"
+  ]
+}

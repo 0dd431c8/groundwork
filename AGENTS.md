@@ -27,15 +27,16 @@ code reads them through `src/lib/env.ts`.
 
 ## Commands
 
-| Command                                              | What it does                                      |
-| ---------------------------------------------------- | ------------------------------------------------- |
-| `bun run dev`                                        | Vite dev server                                   |
-| `bun run build`                                      | `tsc -b` then `vite build`                        |
-| `bun run check`                                      | `format:check` + `lint` + `typecheck` + app tests |
-| `bun run test`                                       | Vitest watch, `app` project only                  |
-| `bun run test:infra`                                 | Vitest watch, `build` and `lint` projects         |
-| `bun run test:coverage`                              | All three projects, v8 report in `coverage/`      |
-| `bun run lint` / `lint:fix` / `format` / `typecheck` | The individual steps                              |
+| Command                                              | What it does                                                |
+| ---------------------------------------------------- | ----------------------------------------------------------- |
+| `bun run dev`                                        | Vite dev server                                             |
+| `bun run build`                                      | `tsc -b` then `vite build`                                  |
+| `bun run check`                                      | `format:check` + `lint` + `dupes` + `typecheck` + app tests |
+| `bun run dupes`                                      | jscpd, copy-paste across `src`, `build` and `lint`          |
+| `bun run test`                                       | Vitest watch, `app` project only                            |
+| `bun run test:infra`                                 | Vitest watch, `build` and `lint` projects                   |
+| `bun run test:coverage`                              | All three projects, v8 report in `coverage/`                |
+| `bun run lint` / `lint:fix` / `format` / `typecheck` | The individual steps                                        |
 
 **Run `bun run check` before claiming anything is done.** `bun run lint` alone passes while
 types or tests are broken. No CI is configured, so this command is the only gate.
@@ -52,7 +53,7 @@ types or tests are broken. No CI is configured, so this command is the only gate
 | `src/test/`            | `render.tsx` (`renderWithProviders`) and `setup.ts`.                                                                                       |
 | `public/`              | Copied to `dist/` verbatim, for files needing an exact name at a known URL. Anything importable belongs in `src/` so it gets hashed.       |
 | `build/`               | Vite plugins `vite.config.ts` imports (brotli, image optimisation, size tables).                                                           |
-| `lint/`                | The local oxlint plugin `jotai.ts`, loaded through `jsPlugins`.                                                                            |
+| `lint/`                | The local oxlint plugins `jotai.ts` and `dry.ts`, loaded through `jsPlugins`, and the ESTree shapes they share in `types.ts`.              |
 
 `build/`, `lint/` and `*.config.ts` are a separate TypeScript project. They cannot import from
 `src` or use the `@/*` alias.
@@ -74,6 +75,11 @@ answer.
   callers can import, not that it gets pasted twice.
 - Generalising is not guessing. Wait for the second real caller, then extract from the two you
   have, so the shape comes from use and not from a prediction.
+
+Two of these are enforced. `dry/no-identical-functions` fails a second function in one file with
+a body identical to an earlier one, from 30 tokens up; `bun run dupes` runs jscpd over `src`,
+`build` and `lint` and fails on any span of 50 tokens repeated across them. Neither can see that
+a new component does what an existing one already does, which is why the grep is step one.
 
 ## Adding a feature
 
@@ -408,6 +414,12 @@ base rule means editing all four copies.
 - `react-perf` bans new objects, arrays and JSX as props. Hoist a constant out of the component.
   New functions as props are allowed.
 - `import/no-cycle`, the backstop for direction mistakes the path patterns cannot name.
+- `react/forbid-elements` rejects `<button>`, `<input>`, `<textarea>` and `<select>`, naming the
+  component to use instead. `src/components/ui` is exempt through `ignorePatterns`.
+- `dry/no-identical-functions`, from `lint/dry.ts`, because eslint-plugin-sonarjs cannot load
+  under TypeScript 7: it pulls in ts-api-utils, which reads a `ts.TypeFlags` that no longer
+  exists. Off in test files, where two cases that set up alike and assert differently are two
+  cases rather than one copy.
 - `no-deprecated` is type-aware, so a React, TanStack or Jotai deprecation fails the build on the
   version bump rather than surfacing in a changelog nobody read.
 

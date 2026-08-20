@@ -20,6 +20,10 @@
     { "name": "router", "specifier": "@tanstack/eslint-plugin-router" },
     // Local, because nothing published lints Jotai. See lint/jotai.ts.
     { "name": "jotai", "specifier": "./lint/jotai.ts" },
+    // Local for a different reason: eslint-plugin-sonarjs supplies no-identical-functions and
+    // cannot load here, because it pulls in ts-api-utils, which reads `ts.TypeFlags` at module
+    // scope and TypeScript 7 does not have one. See lint/dry.ts.
+    { "name": "dry", "specifier": "./lint/dry.ts" },
     // Neither name is reserved, so these two need no alias. Testing Library is in oxlint's
     // JS-plugin conformance suite (17,016 cases, all passing), so the bridge is not the risk
     // here that its alpha label suggests.
@@ -107,6 +111,34 @@
     "react/no-danger": "error",
     "react/no-clone-element": "error",
     "react/prefer-function-component": "error",
+    // The design system is the only source of controls. A raw <button> or <input> renders
+    // without the focus ring, the disabled state and the token colours the component carries,
+    // and nothing in the markup says so. src/components/ui is in ignorePatterns above, so the
+    // primitives themselves are exempt. Structural elements are deliberately absent: <ul>,
+    // <form> and <fieldset> have no component behind them and stay raw.
+    "react/forbid-elements": [
+      "error",
+      {
+        "forbid": [
+          {
+            "element": "button",
+            "message": "Use `Button` from @/components/ui/button. A bare <button> misses the focus ring, the disabled state and the token colours.",
+          },
+          {
+            "element": "input",
+            "message": "Use `Input` from @/components/ui/input, or `Checkbox` for a checkbox.",
+          },
+          {
+            "element": "textarea",
+            "message": "There is no textarea primitive yet. Add one with `bunx shadcn@latest add textarea` rather than styling a bare element.",
+          },
+          {
+            "element": "select",
+            "message": "There is no select primitive yet. Add one with `bunx shadcn@latest add select` rather than styling a bare element.",
+          },
+        ],
+      },
+    ],
 
     // The queryKey has to name everything the queryFn closes over, or two different fetches
     // share a cache entry. `prefer-query-options` is not in the plugin's recommended set; it
@@ -125,6 +157,12 @@
     "jotai/no-atom-in-render": "error",
     "jotai/prefer-narrow-hook": "error",
     "jotai/atom-suffix": "error",
+
+    // Duplication is the half of DRY a linter can decide. This one is exact and within a
+    // single file, which is the copy most likely to drift and the cheapest to catch. Across
+    // files is `bun run dupes`. Neither sees a component rewritten to do what an existing one
+    // already does, so that half stays a review question.
+    "dry/no-identical-functions": "error",
 
     "router/create-route-property-order": "error",
     "router/route-param-names": "error",
@@ -217,6 +255,10 @@
         "max-lines": "off",
         // Test helpers stay next to the cases that use them.
         "unicorn/consistent-function-scoping": "off",
+        // Two cases that set up identically and assert differently are two cases, not one
+        // copy. Extracting the shared half into a helper is what makes a failing test say
+        // less about what it was doing.
+        "dry/no-identical-functions": "off",
       },
     },
     {
