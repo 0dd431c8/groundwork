@@ -65,8 +65,8 @@ Before pushing anything:
 bun run check
 ```
 
-That is format check, lint, typecheck and the app test suite in one command. No CI is configured,
-so this is the gate.
+That is format check, lint, the duplication check, typecheck and the app test suite in one
+command. No CI is configured, so this is the gate.
 
 ## Why this starter
 
@@ -109,8 +109,9 @@ linter.
   An agent that reads its own tool output takes the correction in the same turn, rather than in a
   review comment three days later.
 
-- `bun run check` covers formatting, lint, types and tests in one deterministic command that
-  finishes in seconds. An agent loop wants one signal, and that is the one.
+- `bun run check` covers formatting, lint, copy-paste detection, types and tests in one
+  deterministic command that finishes in seconds. An agent loop wants one signal, and that is
+  the one.
 - A constant goes in `<feature>.schema.ts`, an atom in `.state.ts`, a fetch in `.api.ts`, a
   mutation in `.queries.ts`. The layer decides the file, so nobody has to invent a structure per
   task.
@@ -226,18 +227,20 @@ for the same reason.
 | ----------------------- | --------------------------------------------------------------- |
 | `bun run dev`           | Vite dev server                                                 |
 | `bun run build`         | `tsc -b`, then `vite build` into `dist/`                        |
-| `bun run check`         | Format check, lint, typecheck and app tests. Run before pushing |
+| `bun run check`         | Format check, lint, duplication check, typecheck and app tests  |
 | `bun run test`          | Vitest in watch mode, `app` project only                        |
 | `bun run test:infra`    | Vitest in watch mode, the `build` and `lint` projects           |
 | `bun run test:ui`       | Vitest dashboard                                                |
 | `bun run test:coverage` | All three projects, v8 report in `coverage/`                    |
 | `bun run lint`          | oxlint                                                          |
 | `bun run lint:fix`      | oxlint with `--fix`                                             |
+| `bun run dupes`         | jscpd, copy-paste across `src`, `build` and `lint`              |
 | `bun run format`        | oxfmt                                                           |
 | `bun run format:check`  | oxfmt in check mode                                             |
 | `bun run typecheck`     | `tsc -b`                                                        |
 
-`bun run lint` on its own passes while types or tests are broken, which is why `check` exists.
+`bun run lint` on its own passes while types, tests or copy-paste are broken, which is why
+`check` exists.
 
 ## Testing
 
@@ -285,7 +288,9 @@ Also on: no `any`, no non-null `!`, no `console`, no `@ts-ignore`. Exported func
 return type, components included. `max-lines` 400, `max-lines-per-function` 40, `complexity` 15,
 with test files exempt from the first two. `import/no-cycle` as the backstop for direction mistakes
 the path patterns cannot name. Three Jotai rules from `lint/jotai.ts`, because nothing published
-lints Jotai.
+lints Jotai. Duplication is checked twice: `dry/no-identical-functions` from `lint/dry.ts` rejects
+a second function in one file whose body matches an earlier one, and `bun run dupes` runs
+[jscpd](https://jscpd.info) across `src`, `build` and `lint` to catch the copies that span files.
 
 `tsconfig.json` runs `strict` plus `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`,
 `noPropertyAccessFromIndexSignature` and `noImplicitReturns`.
