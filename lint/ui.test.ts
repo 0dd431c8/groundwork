@@ -93,6 +93,38 @@ describe('no-raw-element', () => {
     expect(found).toEqual([]);
   });
 
+  it('allows text, media and the sectioning elements no component is coming for', async () => {
+    const found = await lint(
+      `export function W() {
+         return (
+           <address>
+             <video controls>
+               <track kind="captions" />
+             </video>
+             <p>
+               <del>old</del> <ins>new</ins>, <cite>source</cite>, <q>quoted</q>
+             </p>
+           </address>
+         );
+       }`,
+      raw,
+    );
+
+    expect(found).toEqual([]);
+  });
+
+  it('keeps the third-party embeds a decision, not a default', async () => {
+    const found = await lint(
+      `export function W() {
+         return <iframe title="x" src="https://example.com" />;
+       }`,
+      raw,
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toContain('<iframe> is a raw element');
+  });
+
   it('takes additions from the allow option', async () => {
     const found = await lint(
       `export function W() {

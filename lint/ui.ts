@@ -19,9 +19,13 @@ type Context = BaseContext & { options: readonly Options[] };
 
 /**
  * Elements the design system will never own, because they carry no behaviour and no styling
- * decision: layout, text, lists, the parts of a form that are not controls, and SVG, whose
- * children are listed so that one hand-written illustration does not need twelve disable
+ * decision: layout, text, lists, the parts of a form that are not controls, media, and SVG,
+ * whose children are listed so that one hand-written illustration does not need twelve disable
  * comments. Everything absent from here is a control until someone decides otherwise.
+ *
+ * `iframe`, `embed` and `object` are absent on purpose rather than by oversight. No component
+ * is coming for them either, but embedding third-party content should be a decision somebody
+ * made, so reaching for one costs a disable comment saying what it loads and why.
  */
 const ALLOWED = new Set([
   'div',
@@ -33,6 +37,9 @@ const ALLOWED = new Set([
   'main',
   'nav',
   'aside',
+  'address',
+  'hgroup',
+  'search',
   'figure',
   'figcaption',
 
@@ -45,21 +52,41 @@ const ALLOWED = new Set([
   'p',
   'strong',
   'em',
+  'b',
+  'i',
+  'u',
+  's',
   'small',
   'code',
   'pre',
-  'blockquote',
-  'br',
-  'time',
-  'abbr',
+  'samp',
   'kbd',
+  'var',
+  'blockquote',
+  'q',
+  'cite',
+  'abbr',
+  'dfn',
+  'data',
+  'time',
   'mark',
   'sub',
   'sup',
+  'del',
+  'ins',
+  'br',
+  'wbr',
+  // Bidirectional text and ruby annotations: typography the browser owns outright.
+  'bdi',
+  'bdo',
+  'ruby',
+  'rp',
+  'rt',
 
   'ul',
   'ol',
   'li',
+  'menu',
   'dl',
   'dt',
   'dd',
@@ -71,9 +98,18 @@ const ALLOWED = new Set([
   'legend',
   'output',
 
+  // The browser's own player chrome is not something a design system replaces; a component
+  // that wraps one still renders one of these underneath.
   'img',
   'picture',
   'source',
+  'audio',
+  'video',
+  'track',
+  'canvas',
+  'area',
+  'map',
+  'math',
 
   'svg',
   'path',

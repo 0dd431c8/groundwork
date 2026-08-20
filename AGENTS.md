@@ -330,8 +330,10 @@ paint instead of becoming `undefined` three layers down.
 - `ui/no-raw-element` enforces this from the other side: structure is allowed and every other
   element is an error, so a control fails before its component exists and adding a primitive
   needs no config change. Layout, text, lists, `<form>`, `<fieldset>`, `<legend>`, `<output>`,
-  images and SVG stay raw. Anything else is a control until `ALLOWED` in `lint/ui.ts` says
-  otherwise, and the entry wants a reason next to it.
+  media and SVG stay raw. Anything else is a control until `ALLOWED` in `lint/ui.ts` says
+  otherwise, and the entry wants a reason next to it. `<iframe>`, `<embed>` and `<object>` are
+  the exception that is not about components: nothing is coming to replace them, and the
+  disable comment is there to make somebody say what is being embedded.
 - `src/components/ui/` is shadcn CLI output. Add components with `bunx shadcn@latest add <name>`,
   and do not hand-edit them: a re-add overwrites the file. oxlint, oxfmt and coverage all skip
   that directory for exactly that reason, so check what the CLI installed and add anything new
