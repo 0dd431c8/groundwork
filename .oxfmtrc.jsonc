@@ -9,13 +9,16 @@
     "stylesheet": "src/styles/index.css",
     "functions": ["cn", "cva"],
   },
-  // Vendored output, rewritten verbatim by `bunx shadcn add` and `bunx skills add`. Add a
-  // directory here when you install the skills for another agent.
+  // Vendored output, rewritten verbatim by `bunx shadcn add` and `bunx skills add`. Only the
+  // vendored skill is listed, not all of `.agents/`, so this repo's own skills are formatted
+  // like everything else. `.claude/` is skipped whole: every entry in it is either a symlink to
+  // `.agents/skills/` or the second vendored copy. Add a directory here when you install the
+  // skills for another agent.
   "ignorePatterns": [
     "dist",
     "src/routeTree.gen.ts",
     "src/components/ui",
-    ".agents",
+    ".agents/skills/jotai",
     ".claude",
     ".roo",
     ".windsurf",

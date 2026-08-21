@@ -100,6 +100,13 @@ linter.
 - [`AGENTS.md`](AGENTS.md) holds the conventions and `CLAUDE.md` is a symlink to it. Claude Code,
   Codex, Cursor, opencode and anything else that follows the [AGENTS.md](https://agents.md)
   convention read the same document, so the guidance cannot fork per tool.
+- That document is 144 lines, because it is read on every turn of every session and a long one
+  both costs context and gets followed less. It keeps what is true of every task: the commands,
+  the layout, the dependency arrows, the banned imports. The detail behind each of those (the
+  layer-by-layer guide, forms, styling and accessibility, testing, environment variables, the
+  lint plugins) sits in `.agents/skills/`, one file per topic, and loads only when the work calls
+  for it. Skill-aware agents pick those up on their own; the rest follow the table at the top of
+  `AGENTS.md`.
 - The linter does not say "unexpected import". It says:
 
   > A mutation gets a named hook in `<feature>.queries.ts`, because what it invalidates is a fact
@@ -119,9 +126,10 @@ linter.
   works turn up in the same directory listing.
 - Two pieces of agent config ship with the repo. `.mcp.json` and `opencode.json` register the
   [shadcn MCP server](https://ui.shadcn.com), which lets an agent search the component registry
-  rather than guess at it. `.agents/skills/` and `.claude/skills/` carry the
+  rather than guess at it. `.agents/skills/` holds the topic guides above alongside the
   [Jotai skill](https://github.com/jotaijs/jotai-skills), pinned by `skills-lock.json`, because
-  nothing published teaches Jotai.
+  nothing published teaches Jotai. `.claude/skills/` symlinks to it per skill, so there is one
+  copy of each file and no chance of the two drifting.
 
 Nothing else is included. The bar for adding something is whether it knows this stack specifically:
 an MCP server for this component registry, a skill for this state library. Your editor config and
@@ -143,6 +151,7 @@ build/               Vite plugins: brotli, image optimisation, size tables
 lint/                local oxlint plugin for Jotai
 .githooks/           pre-commit hook, written in TypeScript and run by Bun
 public/              copied to dist/ verbatim, for files needing an exact name at a known URL
+.agents/skills/      one guide per topic, loaded when the work calls for it
 AGENTS.md            the conventions, symlinked as CLAUDE.md
 ```
 
@@ -223,21 +232,21 @@ for the same reason.
 
 ## Scripts
 
-| Command                 | What it does                                                    |
-| ----------------------- | --------------------------------------------------------------- |
-| `bun run dev`           | Vite dev server                                                 |
-| `bun run build`         | `tsc -b`, then `vite build` into `dist/`                        |
-| `bun run check`         | Format check, lint, duplication check, typecheck and app tests  |
-| `bun run test`          | Vitest in watch mode, `app` project only                        |
-| `bun run test:infra`    | Vitest in watch mode, the `build` and `lint` projects           |
-| `bun run test:ui`       | Vitest dashboard                                                |
-| `bun run test:coverage` | All three projects, v8 report in `coverage/`                    |
-| `bun run lint`          | oxlint                                                          |
-| `bun run lint:fix`      | oxlint with `--fix`                                             |
-| `bun run dupes`         | jscpd, copy-paste across `src`, `build` and `lint`              |
-| `bun run format`        | oxfmt                                                           |
-| `bun run format:check`  | oxfmt in check mode                                             |
-| `bun run typecheck`     | `tsc -b`                                                        |
+| Command                 | What it does                                                   |
+| ----------------------- | -------------------------------------------------------------- |
+| `bun run dev`           | Vite dev server                                                |
+| `bun run build`         | `tsc -b`, then `vite build` into `dist/`                       |
+| `bun run check`         | Format check, lint, duplication check, typecheck and app tests |
+| `bun run test`          | Vitest in watch mode, `app` project only                       |
+| `bun run test:infra`    | Vitest in watch mode, the `build` and `lint` projects          |
+| `bun run test:ui`       | Vitest dashboard                                               |
+| `bun run test:coverage` | All three projects, v8 report in `coverage/`                   |
+| `bun run lint`          | oxlint                                                         |
+| `bun run lint:fix`      | oxlint with `--fix`                                            |
+| `bun run dupes`         | jscpd, copy-paste across `src`, `build` and `lint`             |
+| `bun run format`        | oxfmt                                                          |
+| `bun run format:check`  | oxfmt in check mode                                            |
+| `bun run typecheck`     | `tsc -b`                                                       |
 
 `bun run lint` on its own passes while types, tests or copy-paste are broken, which is why
 `check` exists.
@@ -270,7 +279,8 @@ next to the file under test.
 
 [`.oxlintrc.jsonc`](.oxlintrc.jsonc) errors on the `correctness`, `suspicious`, `pedantic` and
 `perf` categories, and runs type-aware rules against the real TypeScript program. The full list is
-in that file and in [`AGENTS.md`](AGENTS.md); the ones that shape day-to-day code:
+in that file, and the reasoning behind each rule is in `.agents/skills/lint-rules/SKILL.md`; the
+ones that shape day-to-day code:
 
 | Banned                                               | Instead                                              |
 | ---------------------------------------------------- | ---------------------------------------------------- |
@@ -355,7 +365,8 @@ There is no server-side rendering here. See the [FAQ](#faq) if that is a require
 4. Add a real `favicon.ico` and `apple-touch-icon.png` to `public/` and uncomment the two links in
    `index.html`. Safari below 26 ignores the SVG icon.
 5. Rewrite this README and update `LICENSE` with your own name.
-6. Read [`AGENTS.md`](AGENTS.md) before adding a feature, or point your agent at it.
+6. Read [`AGENTS.md`](AGENTS.md) before adding a feature, or point your agent at it. It links the
+   topic guides in `.agents/skills/`, which is where the layer-by-layer detail lives.
 
 ## FAQ
 
@@ -404,9 +415,12 @@ hosting is a bucket.
 ### Does this work with Cursor, Codex, Copilot or opencode?
 
 Yes. The conventions live in `AGENTS.md`, the file those tools converged on, and `CLAUDE.md` is a
-symlink to it. `opencode.json` and `.mcp.json` configure the shadcn MCP server for opencode and for
-Claude Code respectively. If you add another agent, add its config directory to `ignorePatterns` in
-`.oxfmtrc.jsonc` so the vendored skill copies stay unformatted.
+symlink to it. The topic guides under `.agents/skills/` follow the
+[Agent Skills](https://agentskills.io) format, so an agent that understands skills loads one when
+it becomes relevant and one that does not reads the same file from the table at the top of
+`AGENTS.md`. Either way there is one copy. `opencode.json` and `.mcp.json` configure the shadcn MCP
+server for opencode and for Claude Code respectively. If you add another agent, add its config
+directory to `ignorePatterns` in `.oxfmtrc.jsonc` so the vendored skill copies stay unformatted.
 
 ### How do I add a shadcn component?
 
