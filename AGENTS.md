@@ -48,6 +48,17 @@ code reads them through `src/lib/env.ts`.
 **Run `bun run check` before claiming anything is done.** `bun run lint` alone passes while
 types or tests are broken. No CI is configured, so this command is the only gate.
 
+**Never work around a `check` failure.** Every rule here encodes a decision about how this
+codebase is built, so a failure names a real problem in the code and the fix is to remove the
+cause. Silencing the report is not the fix: no `oxlint-disable` to quiet a rule you find
+inconvenient, no `any` or `as` to end a type error, no raised `max-lines` or `complexity` ceiling,
+no jscpd ignore marker over duplication, no `skip` on a failing test, no assertion loosened until
+it passes. Read the message, work out why the code triggered it, change the code. The documented
+escape hatches (an inline disable with a comment saying why) exist for the case the rule cannot
+express, not for the case you are in a hurry; if you reach for one, say so and explain what makes
+this call the exception. When you believe the rule itself is wrong, say that too and propose the
+change to `.oxlintrc.jsonc` instead of routing around it in a source file.
+
 ## Layout
 
 | Path                   | Holds                                                                                                                                      |
