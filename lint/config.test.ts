@@ -12,6 +12,7 @@ function only(findings: Finding[], rule: string): number[] {
 }
 
 const RAW = 'ui(no-raw-element)';
+const FEATURE = 'feature(dependency-direction)';
 
 describe('ui/no-raw-element', () => {
   it('is on, and rejects a raw control', async () => {
@@ -46,5 +47,16 @@ describe('ui/no-raw-element', () => {
     );
 
     expect(only(found, RAW)).toEqual([]);
+  });
+});
+
+describe('feature/dependency-direction', () => {
+  it('is on, and rejects an upward feature import', async () => {
+    const found = await lintWithProjectConfig(
+      "import './example-panel';",
+      'src/features/example/example.queries.ts',
+    );
+
+    expect(only(found, FEATURE)).toEqual([1]);
   });
 });

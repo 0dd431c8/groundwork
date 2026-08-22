@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { onTestFinished } from 'vitest';
 
 const repo = resolve(import.meta.dirname, '..', '..');
@@ -11,6 +11,7 @@ const plugins = [
   { name: 'jotai', specifier: join(repo, 'lint', 'jotai.ts') },
   { name: 'dry', specifier: join(repo, 'lint', 'dry.ts') },
   { name: 'ui', specifier: join(repo, 'lint', 'ui.ts') },
+  { name: 'feature', specifier: join(repo, 'lint', 'feature.ts') },
 ];
 
 export type Finding = { rule: string; message: string; help: string; line: number };
@@ -48,7 +49,7 @@ export async function lint(
   };
   const path = join(dir, 'config.json');
   await writeFile(path, JSON.stringify(config));
-  await writeFile(join(dir, name), source);
+  await writeFixture(dir, name, source);
 
   return parse(await capture(dir, name, path));
 }
@@ -65,9 +66,15 @@ export async function lintWithProjectConfig(source: string, name = 'case.tsx'): 
     await rm(dir, { recursive: true, force: true });
   });
 
-  await writeFile(join(dir, name), source);
+  await writeFixture(dir, name, source);
 
   return parse(await capture(dir, name, projectConfig));
+}
+
+async function writeFixture(dir: string, name: string, source: string): Promise<void> {
+  const path = join(dir, name);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, source);
 }
 
 function capture(dir: string, name: string, config: string): Promise<string> {

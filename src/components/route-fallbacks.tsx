@@ -4,12 +4,12 @@ import { TriangleAlertIcon } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 
 /**
- * The three router-level fallbacks, named in `src/lib/router.ts` as `defaultPendingComponent`,
+ * The three router-level fallbacks, named in `src/lib/runtime.tsx` as `defaultPendingComponent`,
  * `defaultErrorComponent` and `defaultNotFoundComponent`. Every route gets them without asking; a
  * route that wants its own says so with the matching per-route option.
  *
- * They live here rather than in `src/lib/router.ts` because that file is infrastructure and holds
- * no JSX.
+ * They stay separate because the runtime owns construction, while this module owns what a person
+ * sees and how retry navigation behaves.
  */
 
 function Frame({ children }: { children: ReactNode }): JSX.Element {

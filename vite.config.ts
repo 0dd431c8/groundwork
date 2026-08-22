@@ -4,8 +4,7 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import tailwindcss from '@tailwindcss/vite';
 // Explicit `.ts` here and inside `build/`, unlike `src`: the config is loaded by Vite's own
 // loader, whose `native` mode (a future default) does not resolve an extensionless import.
-import { brotli } from './build/brotli.ts';
-import { images } from './build/images.ts';
+import { output } from './build/output.ts';
 
 export default defineConfig({
   plugins: [
@@ -16,15 +15,14 @@ export default defineConfig({
     }),
     react(),
     tailwindcss(),
-    images(),
-    brotli(),
+    output(),
   ],
   resolve: {
     // `@/*` comes from tsconfig.json's `paths`, so there is one place to change it.
     tsconfigPaths: true,
   },
   build: {
-    // `build/brotli.ts` prints the sizes instead; gzip is not what gets served.
+    // `build/output.ts` prints the sizes instead; gzip is not what gets served.
     reportCompressedSize: false,
     rolldownOptions: {
       output: {

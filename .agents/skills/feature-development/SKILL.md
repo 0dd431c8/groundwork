@@ -165,7 +165,7 @@ list narrowed to nothing by a filter is a different state again, and deserves di
 and a way back out.
 
 For failures that should take out the whole route rather than one widget, the router already has
-fallbacks: `src/lib/router.ts` sets `defaultPendingComponent`, `defaultErrorComponent` and
+fallbacks: `src/lib/runtime.tsx` sets `defaultPendingComponent`, `defaultErrorComponent` and
 `defaultNotFoundComponent` from `src/components/route-fallbacks.tsx`, so a new route gets all three
 without asking. Override one route's with the matching per-route option only when that route needs
 something the shared one cannot say.

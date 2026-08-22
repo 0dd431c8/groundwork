@@ -1,14 +1,11 @@
-import type { QueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createRootRouteWithContext, HeadContent, Outlet } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { Toaster } from '@/components/toaster';
+import type { RuntimeContext } from '@/lib/runtime';
 import { env } from '../lib/env';
 
-// The context every loader receives. src/lib/router.ts is what supplies it.
-type RouterContext = { queryClient: QueryClient };
-
-export const Route = createRootRouteWithContext<RouterContext>()({
+export const Route = createRootRouteWithContext<RuntimeContext>()({
   component: () => (
     <>
       {/* Renders whatever the matched routes declare in their `head` option. */}

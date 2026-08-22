@@ -1,6 +1,6 @@
 ---
 name: lint-rules
-description: Add or change an oxlint rule, work on the local plugins in lint/, or understand why a rule fired. Use when editing .oxlintrc.jsonc, writing or testing a plugin in lint/jotai.ts, lint/dry.ts or lint/ui.ts, adding an entry to the ui/no-raw-element allowlist, changing a per-layer import ban, or deciding whether a lint failure is the rule's fault or the code's.
+description: Add or change an oxlint rule, work on the local plugins in lint/, or understand why a rule fired. Use when editing .oxlintrc.jsonc, writing or testing a plugin in lint/feature.ts, lint/jotai.ts, lint/dry.ts or lint/ui.ts, adding an entry to the ui/no-raw-element allowlist, changing feature dependency direction, or deciding whether a lint failure is the rule's fault or the code's.
 ---
 
 # Lint rules
@@ -8,16 +8,16 @@ description: Add or change an oxlint rule, work on the local plugins in lint/, o
 `AGENTS.md` lists what the linter rejects. This is how the rules are built, why each one is there,
 and what to do when you add another.
 
-`lint/` holds the local oxlint plugins `jotai.ts`, `dry.ts` and `ui.ts`, loaded through
+`lint/` holds the local oxlint plugins `feature.ts`, `jotai.ts`, `dry.ts` and `ui.ts`, loaded through
 `jsPlugins`, and the ESTree shapes they share in `types.ts`. Each has a colocated test that spawns
 the real oxlint binary, so `bun run test:infra` proves a rule fires rather than assuming it.
 
-## Per-layer import bans
+## Feature dependency direction
 
-Per-layer bans enforce the dependency arrows: `.schema.ts` imports no framework and nothing above
-it, `.state.ts` imports no React and no React Query, `.api.ts` imports no React, Jotai or React
-Query. An override **replaces** `no-restricted-imports` rather than merging it, so editing the
-base rule means editing all four copies.
+`feature/dependency-direction` classifies production modules by filename and enforces the complete
+chain: schema <- state <- transport <- query <- rendering <- index. It also owns the role-specific
+framework bans and keeps mutations behind named query hooks. Test files are deliberately outside
+classification. Generic React and Jotai bans remain in `no-restricted-imports`.
 
 ## Why each rule is on
 

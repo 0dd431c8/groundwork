@@ -1,49 +1,37 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  createMemoryHistory,
-  createRouter,
-  RouterContextProvider,
-  RouterProvider,
-} from '@tanstack/react-router';
+import { QueryClient } from '@tanstack/react-query';
+import { createMemoryHistory } from '@tanstack/react-router';
 import { render, type RenderOptions, type RenderResult } from '@testing-library/react';
-import { createStore, Provider } from 'jotai';
+import { createStore } from 'jotai';
 import type { ReactElement, ReactNode } from 'react';
-import { queryDefaults } from '@/lib/query-client';
-import { routerDefaults } from '@/lib/router';
-import { routeTree } from '@/routeTree.gen';
+import {
+  createAppRuntime,
+  RuntimeApp,
+  RuntimeScope,
+  type AppRuntime,
+  type RuntimeStore,
+} from '@/lib/runtime';
 
-// Jotai does not re-export its store type from the package root, so derive it.
-type Store = ReturnType<typeof createStore>;
-
-type Providers = { store?: Store; queryClient?: QueryClient };
+type Providers = { store?: RuntimeStore; queryClient?: QueryClient | undefined };
 
 type Options = Omit<RenderOptions, 'wrapper'> & Providers & { path?: string };
 
-// The production defaults, minus retries: without `retry: false` a test of an error branch waits
-// out the backoff and times out. Everything else is shared, so a test sees the same staleness rules
-// the app does and a loader that skips a refetch here skips it there.
-function createTestQueryClient() {
-  return new QueryClient({
-    defaultOptions: { queries: { ...queryDefaults, retry: false } },
-  });
-}
+type Rendered = RenderResult & AppRuntime & { mutationErrors: unknown[] };
 
-// `RouterContextProvider`, not `RouterProvider`: this puts the router in context without rendering
-// the matched route, so a test still renders the component it named. It uses the real route tree so
-// a `<Link to="/todos/$todoId">` resolves against the paths the app actually has, rather than a
-// stub list that would drift the first time a route is renamed.
-function createTestRouter(queryClient: QueryClient, path: string) {
-  return createRouter({
-    routeTree,
-    context: { queryClient },
+function createTestRuntime(path: string, providers: Providers): RenderedRuntime {
+  const mutationErrors: unknown[] = [];
+  const runtime = createAppRuntime({
     history: createMemoryHistory({ initialEntries: [path] }),
-    ...routerDefaults,
+    mutationErrorReporter: (error) => {
+      mutationErrors.push(error);
+    },
+    queryRetry: false,
+    ...(providers.queryClient === undefined ? {} : { queryClient: providers.queryClient }),
+    ...(providers.store === undefined ? {} : { store: providers.store }),
   });
+  return { mutationErrors, runtime };
 }
 
-type TestRouter = ReturnType<typeof createTestRouter>;
-
-type Rendered = RenderResult & { store: Store; queryClient: QueryClient; router: TestRouter };
+type RenderedRuntime = { mutationErrors: unknown[]; runtime: AppRuntime };
 
 /**
  * Renders `ui` in the same provider stack as src/main.tsx, over a store, a QueryClient and a
@@ -59,24 +47,15 @@ type Rendered = RenderResult & { store: Store; queryClient: QueryClient; router:
  */
 export function renderWithProviders(
   ui: ReactElement,
-  {
-    store = createStore(),
-    queryClient = createTestQueryClient(),
-    path = '/todos',
-    ...options
-  }: Options = {},
+  { store = createStore(), queryClient, path = '/todos', ...options }: Options = {},
 ): Rendered {
-  const router = createTestRouter(queryClient, path);
+  const { mutationErrors, runtime } = createTestRuntime(path, { store, queryClient });
 
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <RouterContextProvider router={router}>
-        <Provider store={store}>{children}</Provider>
-      </RouterContextProvider>
-    </QueryClientProvider>
+    <RuntimeScope runtime={runtime}>{children}</RuntimeScope>
   );
 
-  return { store, queryClient, router, ...render(ui, { wrapper, ...options }) };
+  return { ...runtime, mutationErrors, ...render(ui, { wrapper, ...options }) };
 }
 
 /**
@@ -90,20 +69,13 @@ export function renderWithProviders(
  */
 export function renderRoute(
   path: string,
-  { store = createStore(), queryClient = createTestQueryClient() }: Providers = {},
+  { store = createStore(), queryClient }: Providers = {},
 ): Rendered {
-  const router = createTestRouter(queryClient, path);
+  const { mutationErrors, runtime } = createTestRuntime(path, { store, queryClient });
 
   return {
-    store,
-    queryClient,
-    router,
-    ...render(
-      <QueryClientProvider client={queryClient}>
-        <Provider store={store}>
-          <RouterProvider router={router} />
-        </Provider>
-      </QueryClientProvider>,
-    ),
+    ...runtime,
+    mutationErrors,
+    ...render(<RuntimeApp runtime={runtime} />),
   };
 }

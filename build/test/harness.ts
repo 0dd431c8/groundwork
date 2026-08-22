@@ -3,10 +3,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { onTestFinished, vi } from 'vitest';
 import type { Plugin, ResolvedConfig } from 'vite';
-import type { Log } from '../report.ts';
 
 /** Stands in for Vite's logger and keeps what a table printed. */
-export type Recorder = Log & { lines: string[] };
+export type Recorder = { lines: string[]; info: (message: string) => void };
 
 export function recorder(): Recorder {
   const lines: string[] = [];
@@ -42,7 +41,7 @@ type Hooks = {
  * a test drives by hand. The assertions are the point: a whole `ResolvedConfig` cannot be
  * stood up for two fields, and Vite types every hook as function-or-object.
  */
-export function start(plugin: Plugin, dir: string, log: Log): Hooks {
+export function start(plugin: Plugin, dir: string, log: Recorder): Hooks {
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const config = { build: { outDir: dir }, logger: log } as unknown as ResolvedConfig;
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion

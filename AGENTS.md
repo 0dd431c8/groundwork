@@ -63,17 +63,17 @@ change to `.oxlintrc.jsonc` instead of routing around it in a source file.
 
 ## Layout
 
-| Path                   | Holds                                                                                                                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/routes/`          | File-based routes, nested by directory. `src/routeTree.gen.ts` is generated and committed; never hand-edit it.                             |
-| `src/features/<name>/` | Everything belonging to one feature: schema, state, transport, queries, components, tests.                                                 |
-| `src/lib/`             | Infrastructure only: `router.ts`, `query-client.ts`, `store.ts`, `env.ts`, `utils.ts`. A module that names a feature does not belong here. |
-| `src/components/ui/`   | Vendored shadcn output. Treat as generated.                                                                                                |
-| `src/styles/index.css` | The single stylesheet: Tailwind import, theme tokens, `@layer base`.                                                                       |
-| `src/test/`            | `render.tsx` (`renderWithProviders`, `renderRoute`) and `setup.ts`.                                                                        |
-| `public/`              | Copied to `dist/` verbatim, for files needing an exact name at a known URL. Anything importable belongs in `src/` so it gets hashed.       |
-| `build/`               | Vite plugins `vite.config.ts` imports (brotli, image optimisation, size tables).                                                           |
-| `lint/`                | The local oxlint plugins `jotai.ts`, `dry.ts` and `ui.ts`, loaded through `jsPlugins`, and the ESTree shapes they share in `types.ts`.     |
+| Path                   | Holds                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/routes/`          | File-based routes, nested by directory. `src/routeTree.gen.ts` is generated and committed; never hand-edit it.                       |
+| `src/features/<name>/` | Everything belonging to one feature: schema, state, transport, queries, components, tests.                                           |
+| `src/lib/`             | Infrastructure only: app runtime, validated env, notifications and utilities. A module that names a feature does not belong here.    |
+| `src/components/ui/`   | Vendored shadcn output. Treat as generated.                                                                                          |
+| `src/styles/index.css` | The single stylesheet: Tailwind import, theme tokens, `@layer base`.                                                                 |
+| `src/test/`            | `render.tsx` (`renderWithProviders`, `renderRoute`) and `setup.ts`.                                                                  |
+| `public/`              | Copied to `dist/` verbatim, for files needing an exact name at a known URL. Anything importable belongs in `src/` so it gets hashed. |
+| `build/`               | Vite plugins `vite.config.ts` imports (brotli, image optimisation, size tables).                                                     |
+| `lint/`                | Local oxlint plugins for feature direction, Jotai, duplication and UI, plus the ESTree shapes they share in `types.ts`.              |
 
 `build/`, `lint/` and `*.config.ts` are a separate TypeScript project. They cannot import from
 `src` or use the `@/*` alias.
@@ -150,7 +150,7 @@ naming the fix.
 | `useEffect` from `react`                             | Derive state with an atom, or use an event handler   |
 | `forwardRef` from `react`                            | React 19 passes `ref` as an ordinary prop            |
 | `createContext` / `useContext`                       | Jotai for client state, React Query for server state |
-| `getDefaultStore` from `jotai`                       | The explicit store in `src/lib/store.ts`             |
+| `getDefaultStore` from `jotai`                       | The explicit store in `src/lib/runtime.tsx`          |
 | `@/features/*/*`                                     | The feature's `index.ts`                             |
 | `useMutation` / `useQueryClient` in a feature `.tsx` | A named hook in `<feature>.queries.ts`               |
 

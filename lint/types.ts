@@ -32,6 +32,7 @@ export type SourceCode = {
 
 /** Everything a rule gets except its own options, which each plugin types for itself. */
 export type BaseContext = {
+  filename: string;
   sourceCode: SourceCode;
   report: (descriptor: { message: string; node: Node }) => void;
 };

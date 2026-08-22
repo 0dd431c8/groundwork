@@ -155,12 +155,12 @@ A new engineer gets the same feedback on their first afternoon, so none of this 
 src/
   routes/            file-based routes; routeTree.gen.ts is generated and committed
   features/<name>/   one folder per feature: schema, state, api, queries, components, tests
-  lib/               router, query client, jotai store, validated env, utils
+  lib/               app runtime, validated env, notifications, utils
   components/ui/     vendored shadcn output
   styles/index.css   Tailwind import, theme tokens, base layer
   test/              renderWithProviders, renderRoute and the Vitest setup file
-build/               Vite plugins: brotli, image optimisation, size tables
-lint/                local oxlint plugins: jotai.ts, dry.ts, ui.ts
+build/               one Vite module: image optimisation, brotli, size tables
+lint/                local oxlint plugins: feature direction, Jotai, duplication, UI
 .githooks/           pre-commit hook, written in TypeScript and run by Bun
 .github/workflows/   CI: the same `bun run check` on pushes to main and pull requests
 public/              copied to dist/ verbatim, for files needing an exact name at a known URL
@@ -258,7 +258,7 @@ The TanStack Router plugin generates `src/routeTree.gen.ts` during `dev` and `bu
 is committed. Never edit that file by hand. Routes import features through their barrels and
 compose them; each feature determines how its own pieces fit together.
 
-`src/lib/router.ts` defines the router defaults:
+The deep App Runtime in `src/lib/runtime.tsx` defines the router defaults:
 
 - `defaultPendingComponent`, `defaultErrorComponent` and `defaultNotFoundComponent`, from
   `src/components/route-fallbacks.tsx`. Without them a loader failure is a blank page and an
@@ -279,13 +279,10 @@ Site-level metadata stays static in `index.html`, because social scrapers do not
 
 ### Providers
 
-`src/main.tsx` composes the QueryClient, an explicit Jotai store from `src/lib/store.ts`, and the
-router. `src/test/render.tsx` uses the same stack, so tests that seed a store exercise the production
-write path. To keep that behavior consistent, importing Jotai's implicit default store is banned.
-
-`src/lib/query-client.ts` exports `queryDefaults`, and `src/lib/router.ts` exports `routerDefaults`.
-The test harness builds its client and router from those exports. This prevents tests from using a
-different cache schedule or TanStack's built-in "Not Found" fallback.
+`src/lib/runtime.tsx` owns QueryClient, router and Jotai-store construction plus provider order.
+Browser startup and `src/test/render.tsx` are its two adapters. Tests get a fresh runtime with
+retries disabled, while all other construction rules stay inside the same module. Tests that seed a
+store exercise the production write path, so importing Jotai's implicit default store is banned.
 
 The QueryClient sets `staleTime` to 30 seconds and `retry` to 1. Its `MutationCache` sends each
 failure to `notifyError` in `src/lib/notify.ts`, which raises one toast. Read failures do not use
@@ -364,7 +361,7 @@ following bans shape day-to-day code:
 | `useEffect` from `react`                             | Derive state with an atom, or use an event handler   |
 | `forwardRef` from `react`                            | React 19 passes `ref` as an ordinary prop            |
 | `createContext` / `useContext`                       | Jotai for client state, React Query for server state |
-| `getDefaultStore` from `jotai`                       | The explicit store in `src/lib/store.ts`             |
+| `getDefaultStore` from `jotai`                       | The explicit store in `src/lib/runtime.tsx`          |
 | `@/features/*/*`                                     | The feature's `index.ts`                             |
 | `useMutation` / `useQueryClient` in a feature `.tsx` | A named hook in `<feature>.queries.ts`               |
 
@@ -409,16 +406,11 @@ Renovate GitHub App on the repository to enable the configuration; the file is i
 
 ## Build output
 
-`bun run build` typechecks, then writes a static bundle to `dist/`. Three local Vite plugins in
-`build/` run after it:
-
-- `build/images.ts` re-encodes png, jpeg, webp and avif through
-  [sharp](https://sharp.pixelplumbing.com) and runs SVGs through [svgo](https://svgo.dev). It only
-  keeps a rewrite when the result is smaller, leaving already optimised assets untouched.
-- `build/brotli.ts` writes a `.br` beside every text asset over one MTU, since below that a smaller
-  file still costs the same round trip. Fonts and images are skipped: both come back larger.
-- `build/report.ts` prints the size tables, grouped by asset kind, showing transfer size rather
-  than raw size.
+`bun run build` typechecks, then writes a static bundle to `dist/`. One deep Vite module in
+`build/output.ts` runs the ordered output pipeline: it re-encodes png, jpeg, webp and avif through
+[sharp](https://sharp.pixelplumbing.com), runs SVGs through [svgo](https://svgo.dev), writes a `.br`
+beside text assets over one MTU, then prints size tables using transfer rather than raw size. It
+only keeps smaller image rewrites, and fonts and raster images are not precompressed.
 
 Vendor code is split into `vendor-react`, `vendor-tanstack` and a catch-all `vendor` chunk, so
 adding a dependency does not rehash the chunk your users already have cached.

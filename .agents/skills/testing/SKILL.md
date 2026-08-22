@@ -52,10 +52,10 @@ renderWithProviders(
   the feature's alert rather than the router error fallback. Prefer the fake transport's own
   failure control; if it has none, a narrowly scoped `.api.ts` mock is appropriate for this
   boundary test. Keep the real query options and route loader in place.
-- Both helpers build their client and router from `queryDefaults` and `routerDefaults`, which the
-  app exports. Do not hand-roll a `QueryClient` or a `createRouter` in a test: one that goes stale
-  on a different schedule, or that falls back to TanStack's built-in "Not Found", proves something
-  the app does not do.
+- Both helpers use the deep App Runtime in `src/lib/runtime.tsx`. Do not hand-roll a `QueryClient`
+  or a `createRouter` in a test: one that goes stale on a different schedule, skips the mutation
+  reporter adapter, or falls back to TanStack's built-in "Not Found" proves something the app does
+  not do.
 
 - **Mock the feature's `.api.ts` with `vi.mock`, never the query definitions.** That keeps the
   real `queryOptions` wiring under test instead of a stub of it. Route tests ordinarily use the

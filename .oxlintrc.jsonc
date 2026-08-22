@@ -27,6 +27,8 @@
     // Local because the shape of the rule is local: what counts as a raw element depends on
     // what src/components/ui holds. See lint/ui.ts.
     { "name": "ui", "specifier": "./lint/ui.ts" },
+    // Local because feature roles and their dependency direction belong to this starter.
+    { "name": "feature", "specifier": "./lint/feature.ts" },
     // Neither name is reserved, so these two need no alias. Testing Library is in oxlint's
     // JS-plugin conformance suite (17,016 cases, all passing), so the bridge is not the risk
     // here that its alpha label suggests.
@@ -161,6 +163,7 @@
     // files is `bun run dupes`. Neither sees a component rewritten to do what an existing one
     // already does, so that half stays a review question.
     "dry/no-identical-functions": "error",
+    "feature/dependency-direction": "error",
 
     "router/create-route-property-order": "error",
     "router/route-param-names": "error",
@@ -176,10 +179,6 @@
     "react-perf/jsx-no-new-function-as-prop": "off",
 
     "import/no-cycle": "error",
-    // Three overrides below redeclare this rule, and a redeclaration replaces it wholesale
-    // rather than merging, so each one restates what it still wants. Change an entry here and
-    // check all three. Where an override bans a whole module the named-import entries for it
-    // are dropped rather than repeated, since the module ban already covers them.
     // Named imports only: `import React from 'react'` then `React.forwardRef` slips through.
     "no-restricted-imports": [
       "error",
@@ -203,7 +202,7 @@
           {
             "name": "jotai",
             "importNames": ["getDefaultStore"],
-            "message": "src/lib/store.ts wires an explicit `createStore()` that main.tsx passes to `<Provider>`. The default store silently bypasses it, so reads and writes land in a store nothing rendered against and tests stop being isolated.",
+            "message": "src/lib/runtime.tsx owns an explicit store and passes it to `<Provider>`. The default store silently bypasses it, so reads and writes land in a store nothing rendered against and tests stop being isolated.",
           },
         ],
         "patterns": [
@@ -312,165 +311,18 @@
       },
     },
     {
-      // Domain rules: constants, zod schemas and pure helpers. The bottom layer, so it
-      // imports nothing above it and every layer can share one definition of what is valid.
-      // The base entries are repeated because oxlint replaces the rule rather than merging.
+      // The deep runtime module deliberately owns construction and provider order together.
+      // Splitting its providers out would recreate the shallow seam this module removes.
+      "files": ["src/lib/runtime.tsx"],
+      "rules": {
+        "react/only-export-components": "off",
+      },
+    },
+    {
+      // zod's `.catch()` supplies a fallback value and has nothing to do with a promise.
       "files": ["src/features/*/*.schema.ts"],
       "rules": {
-        // zod's `.catch()` supplies a fallback value for a schema and has nothing to do with a
-        // promise; the rule is syntactic and cannot tell the two apart. Off here rather than
-        // disabled line by line, because this layer is pure data and holds no promise to chain.
         "unicorn/prefer-top-level-await": "off",
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "react",
-                "message": "A schema is a plain value with no framework in it, which is what lets every layer above import it. Anything that needs a hook belongs in a component or in <feature>.queries.ts.",
-              },
-              {
-                "name": "jotai",
-                "message": "A schema describes what is valid, not what is stored. Atoms go in <feature>.state.ts, which may import this file.",
-              },
-              {
-                "name": "@tanstack/react-query",
-                "message": "The bottom layer never reaches up into the server-state layer. Query definitions go in <feature>.queries.ts.",
-              },
-              {
-                "name": "@tanstack/react-form",
-                "message": "The schema is the contract; the form that renders it is a component. Keep useForm in the <feature> .tsx file that owns the form.",
-              },
-            ],
-            "patterns": [
-              {
-                "group": ["@/features/*/*"],
-                "message": "Import a feature through its index (`@/features/<name>`), not its internals. Inside a feature, import relatively (`./<feature>.state`).",
-              },
-              {
-                "group": ["./*.state", "./*.queries", "./*.api"],
-                "message": "Dependencies point one way: .schema.ts <- .state.ts <- .api.ts <- .queries.ts <- components. The schema layer is the bottom and imports none of them.",
-              },
-            ],
-          },
-        ],
-      },
-    },
-    {
-      // Client state must not reach up into the server-state layer or the transport, and an
-      // atom is a plain value with no React in it. The base entries are repeated because
-      // oxlint replaces the rule rather than merging it; `react` is banned outright here,
-      // which subsumes the three named-import entries in the base rule.
-      "files": ["src/features/*/*.state.ts"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "react",
-                "message": "Atoms are plain values with no React in them, which is what lets <feature>.state.test.ts drive them through a bare createStore(). Anything that needs a hook belongs in a component or in <feature>.queries.ts.",
-              },
-              {
-                "name": "@tanstack/react-query",
-                "message": "Client state never reaches into the server-state layer. Banning the relative ./*.queries path alone still leaves the package importable directly.",
-              },
-              {
-                "name": "jotai",
-                "importNames": ["getDefaultStore"],
-                "message": "src/lib/store.ts wires an explicit `createStore()` that main.tsx passes to `<Provider>`. The default store silently bypasses it, so reads and writes land in a store nothing rendered against and tests stop being isolated.",
-              },
-            ],
-            "patterns": [
-              {
-                "group": ["@/features/*/*"],
-                "message": "Import a feature through its index (`@/features/<name>`), not its internals. Inside a feature, import relatively (`./<feature>.state`).",
-              },
-              {
-                "group": ["./*.queries", "./*.api"],
-                "message": "Dependencies point one way: .state.ts <- .queries.ts <- components. Client state must not import the server-state layer or the transport. Derive the other direction instead.",
-              },
-            ],
-          },
-        ],
-      },
-    },
-    {
-      // The transport: fetch and its types, nothing else. This is what keeps
-      // `vi.mock('./<feature>.api')` meaningful, since the real query wiring stays above it.
-      "files": ["src/features/*/*.api.ts"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "react",
-                "message": "The transport is the one layer with no framework in it. Keep fetch and its types here; put anything React-shaped in <feature>.queries.ts or a component.",
-              },
-              {
-                "name": "@tanstack/react-query",
-                "message": "The transport stays React Query free, which is what lets a test vi.mock('./<feature>.api') and still exercise the real queryOptions wiring. Query definitions go in <feature>.queries.ts.",
-              },
-              {
-                "name": "jotai",
-                "message": "The transport is the one layer with no framework in it. Server data never gets copied into an atom.",
-              },
-            ],
-            "patterns": [
-              {
-                "group": ["@/features/*/*"],
-                "message": "Import a feature through its index (`@/features/<name>`), not its internals. Inside a feature, import relatively (`./<feature>.state`).",
-              },
-            ],
-          },
-        ],
-      },
-    },
-    {
-      // Components read queries and call hooks the queries layer exports; they do not own
-      // mutations or reach for the client. Covers *.test.tsx too, deliberately: a test that
-      // needs a raw client is testing the wiring, not the feature.
-      "files": ["src/features/*/*.tsx"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "react",
-                "importNames": ["useEffect"],
-                "message": "useEffect is banned. Derive state, use event handlers, or - if truly unavoidable - add `// oxlint-disable-next-line no-restricted-imports` on the import with a justification comment.",
-              },
-              {
-                "name": "react",
-                "importNames": ["forwardRef"],
-                "message": "React 19 passes `ref` as an ordinary prop, so forwardRef is dead weight. Declare `ref` in the props type instead.",
-              },
-              {
-                "name": "react",
-                "importNames": ["createContext", "useContext"],
-                "message": "Context is not the sharing mechanism here: Jotai owns client state and React Query owns server state. If a value genuinely has to be injected per subtree, add `// oxlint-disable-next-line no-restricted-imports` with a justification comment.",
-              },
-              {
-                "name": "jotai",
-                "importNames": ["getDefaultStore"],
-                "message": "src/lib/store.ts wires an explicit `createStore()` that main.tsx passes to `<Provider>`. The default store silently bypasses it, so reads and writes land in a store nothing rendered against and tests stop being isolated.",
-              },
-              {
-                "name": "@tanstack/react-query",
-                "importNames": ["useMutation", "useQueryClient"],
-                "message": "A mutation gets a named hook in <feature>.queries.ts, because what it invalidates is a fact about the data, not about the widget that triggered it - a component should never name a query key. Reading a query with `useQuery(<feature>Query)` stays fine here.",
-              },
-            ],
-            "patterns": [
-              {
-                "group": ["@/features/*/*"],
-                "message": "Import a feature through its index (`@/features/<name>`), not its internals. Inside a feature, import relatively (`./<feature>.state`).",
-              },
-            ],
-          },
-        ],
       },
     },
   ],
