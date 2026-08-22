@@ -1,12 +1,13 @@
 import type { JSX } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAtomValue, useSetAtom } from 'jotai';
 import { TriangleAlertIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TodoItem } from './todo-item';
 import { todosQuery } from './todos.queries';
-import { matchesFilter, matchesSearch } from './todos.schema';
-import { clearViewAtom, filterAtom, searchAtom } from './todos.state';
+import { matchesFilter, matchesSearch, todoViewDefaults, type TodoView } from './todos.schema';
+
+// The view is owned by the URL and arrives as a prop. See todo-filters.tsx.
+type ViewProps = { view: TodoView; onViewChange: (next: TodoView) => void };
 
 const skeletonRows = [0, 1, 2];
 
@@ -53,37 +54,40 @@ function NothingYet(): JSX.Element {
   );
 }
 
-// A view narrowed to nothing is a different state again, and the way out is the second caller
-// of clearViewAtom, the filter bar being the first. One write-only atom owning the rule is what
-// stops the two of them clearing different halves of the view.
-function NoMatches(): JSX.Element {
-  const clearView = useSetAtom(clearViewAtom);
-
+// A view narrowed to nothing is a different state again, and the way out is the same write the
+// filter bar's "Clear view" performs: one default view object that both callers hand back, so
+// neither can clear half of it.
+function NoMatches({ onViewChange }: Pick<ViewProps, 'onViewChange'>): JSX.Element {
   return (
     <div className="flex flex-col items-start gap-3 border border-dashed border-border p-6">
       <p className="text-sm text-muted-foreground">No todo matches this view.</p>
-      <Button type="button" size="xs" variant="outline" onClick={() => clearView()}>
+      <Button
+        type="button"
+        size="xs"
+        variant="outline"
+        onClick={() => onViewChange(todoViewDefaults)}
+      >
         Show all todos
       </Button>
     </div>
   );
 }
 
-export function TodoList(): JSX.Element {
+export function TodoList({ view, onViewChange }: ViewProps): JSX.Element {
   const { data, isPending, isError } = useQuery(todosQuery);
-  const filter = useAtomValue(filterAtom);
-  const search = useAtomValue(searchAtom);
 
   if (isPending) return <PendingRows />;
   if (isError) return <LoadFailed />;
   if (data.length === 0) return <NothingYet />;
 
-  // Server rows and the client-side view meet here, in render, and nowhere else. No atom
-  // holds a todo and no query key holds the filter, so neither can go stale against the
-  // other and there is nothing for an effect to keep in sync.
-  const visible = data.filter((todo) => matchesFilter(todo, filter) && matchesSearch(todo, search));
+  // Server rows and the URL's view meet here, in render, and nowhere else. No cache entry holds
+  // the filter and no search param holds a todo, so neither can go stale against the other and
+  // there is nothing for an effect to keep in sync.
+  const visible = data.filter(
+    (todo) => matchesFilter(todo, view.filter) && matchesSearch(todo, view.search),
+  );
 
-  if (visible.length === 0) return <NoMatches />;
+  if (visible.length === 0) return <NoMatches onViewChange={onViewChange} />;
 
   return (
     <ul aria-label="Todos" className="w-full">

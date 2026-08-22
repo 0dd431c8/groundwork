@@ -86,6 +86,22 @@
     // bump surfaces the migration here rather than in a changelog nobody read.
     "typescript/no-deprecated": "error",
     "typescript/prefer-promise-reject-errors": "error",
+    // TanStack Router signals a redirect and a 404 by throwing a plain object rather than an
+    // Error, which is how a loader stops without the caller having to check a return value. The
+    // rule cannot know those two are control flow, so name them; everything else still has to be
+    // a real Error.
+    "typescript/only-throw-error": [
+      "error",
+      {
+        "allow": [
+          {
+            "from": "package",
+            "package": "@tanstack/router-core",
+            "name": ["Redirect", "NotFoundError"],
+          },
+        ],
+      },
+    ],
 
     "typescript/no-unsafe-assignment": "error",
     "typescript/no-unsafe-call": "error",
@@ -301,6 +317,10 @@
       // The base entries are repeated because oxlint replaces the rule rather than merging.
       "files": ["src/features/*/*.schema.ts"],
       "rules": {
+        // zod's `.catch()` supplies a fallback value for a schema and has nothing to do with a
+        // promise; the rule is syntactic and cannot tell the two apart. Off here rather than
+        // disabled line by line, because this layer is pure data and holds no promise to chain.
+        "unicorn/prefer-top-level-await": "off",
         "no-restricted-imports": [
           "error",
           {

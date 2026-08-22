@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommitsDisabled"],
+  "timezone": "Etc/UTC",
+  "lockFileMaintenance": { "enabled": true },
+  "packageRules": [
+    {
+      "description": "TanStack packages share a release cadence and their types reference each other, so a partial bump is the one that breaks.",
+      "groupName": "tanstack",
+      "matchPackageNames": ["@tanstack/**"]
+    },
+    {
+      "description": "oxlint, its formatter and the type-aware binary are one toolchain; a version skew between them fails `check` in a way that reads like a code problem.",
+      "groupName": "oxc toolchain",
+      "matchPackageNames": ["oxlint", "oxlint-tsgolint", "oxfmt"]
+    },
+    {
+      "description": "React and its DOM renderer and types move together.",
+      "groupName": "react",
+      "matchPackageNames": ["react", "react-dom", "@types/react", "@types/react-dom"]
+    },
+    {
+      "description": "Dev dependencies automerge on a green check. `bun run check` is the gate that makes this safe; without CI it would not be.",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    }
+  ]
+}

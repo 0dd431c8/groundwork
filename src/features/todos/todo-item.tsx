@@ -1,4 +1,5 @@
 import type { JSX } from 'react';
+import { Link } from '@tanstack/react-router';
 import { Trash2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -68,12 +69,20 @@ export function TodoItem({ todo }: { todo: Todo }): JSX.Element {
         aria-labelledby={titleId}
         onCheckedChange={(checked) => setDone.mutate({ id: todo.id, done: checked })}
       />
-      <span
+      {/* The row's title is the way into the detail route. `params` goes in as an updater rather
+          than an object literal: a literal is a fresh object every render and react-perf rejects
+          it as a prop, while a new function is fine. */}
+      <Link
+        to="/todos/$todoId"
+        params={() => ({ todoId: todo.id })}
         id={titleId}
-        className={cn('flex-1 text-sm', todo.done && 'text-muted-foreground line-through')}
+        className={cn(
+          'flex-1 text-sm hover:underline',
+          todo.done && 'text-muted-foreground line-through',
+        )}
       >
         {todo.title}
-      </span>
+      </Link>
       <PriorityTag todo={todo} />
       <DeleteButton title={todo.title} disabled={busy} onDelete={() => remove.mutate(todo.id)} />
     </li>

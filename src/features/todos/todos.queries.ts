@@ -4,7 +4,7 @@ import {
   useQueryClient,
   type UseMutationResult,
 } from '@tanstack/react-query';
-import { addTodo, fetchTodos, removeTodo, setTodoDone } from './todos.api';
+import { addTodo, fetchTodo, fetchTodos, removeTodo, setTodoDone } from './todos.api';
 import type { AddTodoInput, SetTodoDoneInput, Todo } from './todos.schema';
 
 export const todosKey = ['todos'] as const;
@@ -14,6 +14,23 @@ export const todosQuery = queryOptions({
   // Wrapped, not `queryFn: fetchTodos`: React Query would pass its context object in.
   queryFn: () => fetchTodos(),
 });
+
+// Keyed under todosKey rather than beside it, so invalidating the list invalidates every detail
+// with it. One mutation on one row cannot leave the other view holding the old copy.
+//
+// Built by an unexported function and re-exported with an inferred return type: `queryOptions`
+// brands the key with the data type it resolves to, and writing that brand out by hand is how it
+// goes stale. `todosQuery` above needs none of this because a constant infers its own type.
+function buildTodoQuery(id: string) {
+  return queryOptions({
+    queryKey: [...todosKey, id],
+    queryFn: () => fetchTodo(id),
+  });
+}
+
+export function todoQuery(id: string): ReturnType<typeof buildTodoQuery> {
+  return buildTodoQuery(id);
+}
 
 /**
  * All three hooks below invalidate the same key, which is the argument for them existing:

@@ -1,9 +1,10 @@
+import { useState, type JSX } from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/test/render';
 import { addTodo, fetchTodos, removeTodo, setTodoDone } from './todos.api';
-import type { Todo } from './todos.schema';
+import { todoViewDefaults, type Todo, type TodoView } from './todos.schema';
 import { TodosPanel } from './todos-panel';
 
 vi.mock('./todos.api');
@@ -15,6 +16,15 @@ const todo = (id: string, title: string, done = false): Todo => ({
   done,
   addedAt: Date.UTC(2026, 7, 16, 9, 0),
 });
+
+// The panel is controlled, so something has to hold the view for it. In the app that is the URL
+// via src/routes/todos/index.tsx; here it is one useState, which keeps these cases about the
+// feature rather than about the router.
+function ControlledPanel(): JSX.Element {
+  const [view, setView] = useState<TodoView>(todoViewDefaults);
+
+  return <TodosPanel view={view} onViewChange={setView} />;
+}
 
 // The assembled feature, only the transport mocked. Sibling files cover the parts.
 describe('<TodosPanel />', () => {
@@ -28,7 +38,7 @@ describe('<TodosPanel />', () => {
   });
 
   it('renders the form, the picker, the filters and the list', async () => {
-    renderWithProviders(<TodosPanel />);
+    renderWithProviders(<ControlledPanel />);
 
     expect(screen.getByRole('textbox', { name: 'Title' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Priority' })).toBeInTheDocument();
@@ -38,7 +48,7 @@ describe('<TodosPanel />', () => {
 
   it('adds a todo at the picked priority and shows it in the list', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<TodosPanel />);
+    renderWithProviders(<ControlledPanel />);
     await screen.findByText('Nothing to do yet.');
 
     await user.click(screen.getByRole('button', { name: 'high' }));
@@ -53,7 +63,7 @@ describe('<TodosPanel />', () => {
   it('ticks a todo off, then filters it out of view and back', async () => {
     const user = userEvent.setup();
     vi.mocked(fetchTodos).mockResolvedValue([todo('9', 'Ship it')]);
-    renderWithProviders(<TodosPanel />);
+    renderWithProviders(<ControlledPanel />);
 
     const checkbox = await screen.findByRole('checkbox', { name: 'Ship it' });
     // Queued before the click: the invalidation refetches as soon as the toggle resolves.
@@ -73,7 +83,7 @@ describe('<TodosPanel />', () => {
   it('deletes a todo', async () => {
     const user = userEvent.setup();
     vi.mocked(fetchTodos).mockResolvedValue([todo('9', 'Ship it')]);
-    renderWithProviders(<TodosPanel />);
+    renderWithProviders(<ControlledPanel />);
 
     const remove = await screen.findByRole('button', { name: 'Delete Ship it' });
     vi.mocked(fetchTodos).mockResolvedValue([]);

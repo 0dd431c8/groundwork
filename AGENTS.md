@@ -38,7 +38,7 @@ code reads them through `src/lib/env.ts`.
 | ---------------------------------------------------- | ----------------------------------------------------------- |
 | `bun run dev`                                        | Vite dev server                                             |
 | `bun run build`                                      | `tsc -b` then `vite build`                                  |
-| `bun run check`                                      | `format:check` + `lint` + `dupes` + `typecheck` + app tests |
+| `bun run check`                                      | `format:check` + `lint` + `dupes` + `typecheck` + all tests |
 | `bun run dupes`                                      | jscpd, copy-paste across `src`, `build` and `lint`          |
 | `bun run test`                                       | Vitest watch, `app` project only                            |
 | `bun run test:infra`                                 | Vitest watch, `build` and `lint` projects                   |
@@ -46,7 +46,9 @@ code reads them through `src/lib/env.ts`.
 | `bun run lint` / `lint:fix` / `format` / `typecheck` | The individual steps                                        |
 
 **Run `bun run check` before claiming anything is done.** `bun run lint` alone passes while
-types or tests are broken. No CI is configured, so this command is the only gate.
+types or tests are broken. `.github/workflows/ci.yml` runs this same command plus `build` on every
+push and pull request, so a local pass is the whole gate rather than a rehearsal for a different
+one.
 
 **Never work around a `check` failure.** Every rule here encodes a decision about how this
 codebase is built, so a failure names a real problem in the code and the fix is to remove the
@@ -63,12 +65,12 @@ change to `.oxlintrc.jsonc` instead of routing around it in a source file.
 
 | Path                   | Holds                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/routes/`          | File-based routes. `src/routeTree.gen.ts` is generated and committed; never hand-edit it.                                                  |
+| `src/routes/`          | File-based routes, nested by directory. `src/routeTree.gen.ts` is generated and committed; never hand-edit it.                             |
 | `src/features/<name>/` | Everything belonging to one feature: schema, state, transport, queries, components, tests.                                                 |
 | `src/lib/`             | Infrastructure only: `router.ts`, `query-client.ts`, `store.ts`, `env.ts`, `utils.ts`. A module that names a feature does not belong here. |
 | `src/components/ui/`   | Vendored shadcn output. Treat as generated.                                                                                                |
 | `src/styles/index.css` | The single stylesheet: Tailwind import, theme tokens, `@layer base`.                                                                       |
-| `src/test/`            | `render.tsx` (`renderWithProviders`) and `setup.ts`.                                                                                       |
+| `src/test/`            | `render.tsx` (`renderWithProviders`, `renderRoute`) and `setup.ts`.                                                                        |
 | `public/`              | Copied to `dist/` verbatim, for files needing an exact name at a known URL. Anything importable belongs in `src/` so it gets hashed.       |
 | `build/`               | Vite plugins `vite.config.ts` imports (brotli, image optimisation, size tables).                                                           |
 | `lint/`                | The local oxlint plugins `jotai.ts`, `dry.ts` and `ui.ts`, loaded through `jsPlugins`, and the ESTree shapes they share in `types.ts`.     |
@@ -111,11 +113,21 @@ Nothing imports back up the chain, and no feature imports another feature's inte
 `@/features/<name>` is legal; `@/features/<name>/<file>` is a lint error. Inside a feature import
 relatively (`./<feature>.state`), so the folder can be renamed without editing its own internals.
 
-Jotai owns client state; React Query owns anything that came from a server. The rule that
-matters: **server data is never copied into an atom, and ephemeral UI state is never parked in
-the query cache.** When a mutation changes server data, invalidate the key and let the query
-refetch; do not hand the response to a `set(...)`. Do not reach for React Context to share
-values, and do not lift state through props just to share it.
+State has three owners, and which one a value gets is decided by one question: who else needs to
+see it?
+
+| Owner       | For                                                                               | Reached by                                 |
+| ----------- | --------------------------------------------------------------------------------- | ------------------------------------------ |
+| React Query | Anything that came from a server                                                  | `useQuery(<feature>Query)`                 |
+| The URL     | A view worth sharing or worth surviving a reload: a filter, a search term, a page | `validateSearch` on the route, then a prop |
+| Jotai       | Everything else this browser owns alone                                           | `useAtomValue` / `useSetAtom`              |
+
+The rule that matters: **server data is never copied into an atom, and ephemeral UI state is never
+parked in the query cache.** When a mutation changes server data, invalidate the key and let the
+query refetch; do not hand the response to a `set(...)`. Do not reach for React Context to share
+values, and do not lift state through props just to share it - the exception is state the URL owns,
+which the route reads once and hands down, because a component that calls `useSearch` itself cannot
+be rendered without a router.
 
 Components are named function declarations with an explicit `: JSX.Element`. No default exports
 anywhere.

@@ -1,10 +1,12 @@
 /**
- * Pre-commit hook: formats and lint-fixes staged JS/TS/CSS files, re-stages the fixes,
+ * Pre-commit hook: formats and lint-fixes staged source files, re-stages the fixes,
  * then typechecks. Bypass with `git commit --no-verify`.
  */
 
-// CSS is in because oxfmt formats it too; oxlint ignores it and exits 0.
-const SOURCE_FILE = /\.([cm]?[jt]sx?|css)$/u;
+// Everything oxfmt reads, not just what oxlint reads: a badly formatted ci.yml or renovate.json
+// fails `bun run check` exactly like a badly formatted .tsx. oxlint ignores the non-JS ones and
+// exits 0.
+const SOURCE_FILE = /\.([cm]?[jt]sx?|css|ya?ml|jsonc?|md)$/u;
 
 function fail(message: string): never {
   console.error(`pre-commit: ${message}`);

@@ -30,7 +30,19 @@ export const setTodoDoneSchema = todoSchema.pick({ id: true, done: true });
 // submit, so the form never holds a stale copy of state that lives somewhere else.
 export const addTodoFormSchema = addTodoSchema.pick({ title: true });
 
+// What the list route keeps in the URL. A view is worth sharing and worth surviving a reload,
+// which is what puts it here rather than in an atom.
+export const todoViewDefaults = { filter: 'all', search: '' } as const;
+
+// `.catch()` on both fields is the point: a hand-edited or truncated URL degrades to the default
+// view instead of throwing before anything renders.
+export const todoViewSchema = z.object({
+  filter: todoFilterSchema.default(todoViewDefaults.filter).catch(todoViewDefaults.filter),
+  search: z.string().default(todoViewDefaults.search).catch(todoViewDefaults.search),
+});
+
 export type TodoFilter = z.infer<typeof todoFilterSchema>;
+export type TodoView = z.infer<typeof todoViewSchema>;
 export type TodoPriority = z.infer<typeof todoPrioritySchema>;
 export type AddTodoInput = z.infer<typeof addTodoSchema>;
 export type AddTodoFormValues = z.infer<typeof addTodoFormSchema>;
@@ -48,4 +60,10 @@ export function matchesFilter(todo: Todo, filter: TodoFilter): boolean {
 export function matchesSearch(todo: Todo, search: string): boolean {
   const term = search.trim().toLowerCase();
   return term === '' || todo.title.toLowerCase().includes(term);
+}
+
+// Whether the view is hiding anything, which is what decides if "Clear view" has work to do.
+// Derived from the view rather than tracked beside it, so the two cannot disagree.
+export function isViewNarrowed(view: TodoView): boolean {
+  return view.filter !== todoViewDefaults.filter || view.search.trim() !== '';
 }

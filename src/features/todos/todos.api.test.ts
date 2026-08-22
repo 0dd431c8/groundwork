@@ -58,6 +58,21 @@ describe('todos.api', () => {
     await expect(setTodoDone({ id: '404', done: true })).rejects.toThrow('No todo with id 404.');
   });
 
+  it('fetches one todo by id', async () => {
+    const { fetchTodo } = await freshApi();
+
+    expect(await fetchTodo('1')).toMatchObject({ id: '1' });
+  });
+
+  // The route above tells this apart from a failed request to choose between a 404 and an error
+  // page, which is why it is a named error rather than a null return.
+  it('throws a TodoNotFoundError for an id the server does not have', async () => {
+    const { fetchTodo, TodoNotFoundError } = await freshApi();
+
+    await expect(fetchTodo('404')).rejects.toBeInstanceOf(TodoNotFoundError);
+    await expect(fetchTodo('404')).rejects.toThrow('No todo with id 404.');
+  });
+
   it('removes a todo and reports which one', async () => {
     const { fetchTodos, removeTodo } = await freshApi();
 

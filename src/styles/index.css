@@ -202,3 +202,14 @@
     @apply font-heading;
   }
 }
+
+/* Sonner ships its own palette. Re-point it at the theme tokens so a toast is not the one surface
+   in the app that ignores dark mode; `.dark` has already swapped these by the time it renders. */
+[data-sonner-toaster] {
+  --normal-bg: var(--popover);
+  --normal-text: var(--popover-foreground);
+  --normal-border: var(--border);
+  --error-bg: var(--destructive);
+  --error-text: var(--destructive-foreground);
+  --error-border: var(--destructive);
+}

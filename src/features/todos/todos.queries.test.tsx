@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { addTodo, fetchTodos, removeTodo, setTodoDone } from './todos.api';
-import { todosQuery, useAddTodo, useRemoveTodo, useSetTodoDone } from './todos.queries';
+import { addTodo, fetchTodo, fetchTodos, removeTodo, setTodoDone } from './todos.api';
+import { todoQuery, todosQuery, useAddTodo, useRemoveTodo, useSetTodoDone } from './todos.queries';
 import type { Todo } from './todos.schema';
 
 // Only the transport is mocked, so the real query wiring is what gets exercised.
@@ -36,6 +36,7 @@ describe('todos.queries', () => {
       .mockReset()
       .mockResolvedValue(todo({ done: true }));
     vi.mocked(removeTodo).mockReset().mockResolvedValue({ id: '1' });
+    vi.mocked(fetchTodo).mockReset().mockResolvedValue(todo());
   });
 
   it('sends the input useAddTodo is given to the transport', async () => {
@@ -103,5 +104,21 @@ describe('todos.queries', () => {
 
     await waitFor(() => expect(result.current.add.isError).toBe(true));
     expect(fetchTodos).toHaveBeenCalledOnce();
+  });
+
+  // The detail key nests under the list key, so one invalidation reaches both. A sibling key would
+  // leave the detail showing a row the list has already updated.
+  it('keys a single todo under the list key', () => {
+    expect(todoQuery('9').queryKey).toEqual(['todos', '9']);
+  });
+
+  it('fetches a single todo through the transport', async () => {
+    const { wrapper } = withClient();
+    const { result } = renderHook(() => useQuery(todoQuery('1')), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(fetchTodo).toHaveBeenCalledExactlyOnceWith('1');
+    expect(result.current.data).toMatchObject({ id: '1' });
   });
 });

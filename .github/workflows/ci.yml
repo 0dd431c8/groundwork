@@ -1,0 +1,29 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch cancels the first: the older answer is never the one wanted.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Reads .bun-version, so CI and a laptop cannot drift apart.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run check
+
+      # Separate from `check`, which typechecks but never proves `vite build` succeeds.
+      - run: bun run build

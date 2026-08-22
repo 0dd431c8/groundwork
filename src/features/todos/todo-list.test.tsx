@@ -1,12 +1,10 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createStore } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/test/render';
 import { fetchTodos, removeTodo, setTodoDone } from './todos.api';
 import { TodoList } from './todo-list';
-import type { Todo } from './todos.schema';
-import { filterAtom, searchAtom } from './todos.state';
+import { todoViewDefaults, type Todo, type TodoView } from './todos.schema';
 
 // Only the transport is mocked, so the real query wiring is what gets exercised.
 vi.mock('./todos.api');
@@ -21,6 +19,14 @@ const todo = (id: string, title: string, done = false): Todo => ({
 
 const seeded = [todo('1', 'Read AGENTS.md'), todo('2', 'Run bun run check', true)];
 
+// The view arrives as a prop, so a narrowed list is set up by passing one rather than by seeding
+// a store. src/routes/todos/index.test.tsx is where that prop meets a real URL.
+function renderList(view: TodoView = todoViewDefaults) {
+  const onViewChange = vi.fn<(next: TodoView) => void>();
+  renderWithProviders(<TodoList view={view} onViewChange={onViewChange} />);
+  return { onViewChange };
+}
+
 describe('<TodoList />', () => {
   beforeEach(() => {
     vi.mocked(fetchTodos).mockReset();
@@ -33,7 +39,7 @@ describe('<TodoList />', () => {
   it('shows the pending state before the request settles', () => {
     vi.mocked(fetchTodos).mockReturnValue(new Promise(() => {}));
 
-    renderWithProviders(<TodoList />);
+    renderList();
 
     expect(screen.getByText('Loading todos...')).toBeInTheDocument();
   });
@@ -41,7 +47,7 @@ describe('<TodoList />', () => {
   it('shows the error state when the request fails', async () => {
     vi.mocked(fetchTodos).mockRejectedValue(new Error('offline'));
 
-    renderWithProviders(<TodoList />);
+    renderList();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load todos.');
   });
@@ -49,7 +55,7 @@ describe('<TodoList />', () => {
   it('shows the empty state when the server has no todos', async () => {
     vi.mocked(fetchTodos).mockResolvedValue([]);
 
-    renderWithProviders(<TodoList />);
+    renderList();
 
     expect(await screen.findByText('Nothing to do yet.')).toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
@@ -58,7 +64,7 @@ describe('<TodoList />', () => {
   it('renders the todos once loaded', async () => {
     vi.mocked(fetchTodos).mockResolvedValue(seeded);
 
-    renderWithProviders(<TodoList />);
+    renderList();
 
     const list = await screen.findByRole('list', { name: 'Todos' });
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
@@ -66,15 +72,12 @@ describe('<TodoList />', () => {
     expect(list).toHaveTextContent('Run bun run check');
   });
 
-  // The point of the whole layout: the filter narrows what renders without the server being
-  // asked again, because the filter never entered the query key and the rows never entered
-  // an atom.
+  // The point of the whole layout: the view narrows what renders without the server being asked
+  // again, because the filter never entered the query key and the rows never entered the view.
   it('narrows by filter without refetching', async () => {
     vi.mocked(fetchTodos).mockResolvedValue(seeded);
-    const store = createStore();
-    store.set(filterAtom, 'done');
 
-    renderWithProviders(<TodoList />, { store });
+    renderList({ filter: 'done', search: '' });
 
     await screen.findByRole('list', { name: 'Todos' });
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
@@ -85,10 +88,8 @@ describe('<TodoList />', () => {
 
   it('narrows by search term without refetching', async () => {
     vi.mocked(fetchTodos).mockResolvedValue(seeded);
-    const store = createStore();
-    store.set(searchAtom, 'agents');
 
-    renderWithProviders(<TodoList />, { store });
+    renderList({ filter: 'all', search: 'agents' });
 
     await screen.findByRole('list', { name: 'Todos' });
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
@@ -98,18 +99,15 @@ describe('<TodoList />', () => {
 
   it('tells an empty view apart from an empty server, and offers a way out', async () => {
     vi.mocked(fetchTodos).mockResolvedValue(seeded);
-    const store = createStore();
-    store.set(searchAtom, 'groceries');
 
     const user = userEvent.setup();
-    renderWithProviders(<TodoList />, { store });
+    const { onViewChange } = renderList({ filter: 'all', search: 'groceries' });
 
     expect(await screen.findByText('No todo matches this view.')).toBeInTheDocument();
     expect(screen.queryByText('Nothing to do yet.')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Show all todos' }));
 
-    expect(store.get(searchAtom)).toBe('');
-    expect(await screen.findByRole('list', { name: 'Todos' })).toBeInTheDocument();
+    expect(onViewChange).toHaveBeenCalledWith(todoViewDefaults);
   });
 });

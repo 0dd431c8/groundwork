@@ -21,6 +21,12 @@ description: Write JSX, Tailwind classes, shadcn components, theme tokens, dark 
   `index.html`. The contract is `localStorage['theme']` of `'light' | 'dark'`, absent meaning
   light whatever the OS prefers. A toggle is an `atomWithStorage` atom on that key and needs no
   HTML change.
+- Notifications are `sonner`, mounted once as `<Toaster />` in `__root.tsx`. Never call `toast()`
+  from a component: a failed mutation already reports itself through the `MutationCache` in
+  `src/lib/query-client.ts`, and a second toast for the same failure is the bug. The mount is
+  hand-written rather than `bunx shadcn add sonner`, because that recipe pulls `next-themes` and
+  dark mode here is a class; the palette comes from the `[data-sonner-toaster]` block in
+  `src/styles/index.css`.
 - **Never hand-roll a control `src/components/ui/` already provides.** `Button`, not `<button>`;
   `Input`, not `<input>`; the same for `Label`, `Checkbox`, `Separator` and the `Field` family.
   They carry the focus rings, disabled states and token colours, and a raw element drops all

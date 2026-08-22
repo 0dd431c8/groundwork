@@ -42,6 +42,24 @@ export async function fetchTodos(): Promise<Todo[]> {
   return todos.map((todo) => todoSchema.parse(todo));
 }
 
+// A missing row gets its own error type rather than a null return, for two reasons: React Query
+// refuses `undefined` as data, so a nullable result cannot be read with useSuspenseQuery; and the
+// route above needs to tell "no such todo" apart from "the request failed" to decide between a 404
+// and an error page. A real HTTP transport would build this from a 404 response.
+export class TodoNotFoundError extends Error {
+  constructor(id: string) {
+    super(`No todo with id ${id}.`);
+    this.name = 'TodoNotFoundError';
+  }
+}
+
+export async function fetchTodo(id: string): Promise<Todo> {
+  await delay(300);
+  const found = todos.find((todo) => todo.id === id);
+  if (found === undefined) throw new TodoNotFoundError(id);
+  return todoSchema.parse(found);
+}
+
 export async function addTodo(input: AddTodoInput): Promise<Todo> {
   await delay(300);
   const added: Todo = { id: String(nextId++), ...input, done: false, addedAt: Date.now() };

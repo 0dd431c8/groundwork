@@ -60,18 +60,18 @@ drift apart about what the rule is.
 Atoms live in the feature that owns them, named with an `Atom` suffix. No React here: an atom is
 a plain value, which is what lets tests drive it through a bare `createStore()`.
 
+**Check first that the value is Jotai's at all.** Anything from a server is React Query's. A view
+worth sharing or worth surviving a reload - a filter, a search term, a page, a sort - is the URL's,
+and goes in `validateSearch` on the route. What is left is what this browser owns alone, and that
+is what an atom is for.
+
 ```ts
-export const filterAtom = atomWithStorage<TodoFilter>('todos:filter', 'all', undefined, {
-  getOnInit: true,
-});
-export const searchAtom = atom('');
-export const isViewNarrowedAtom = atom(
-  (get) => get(filterAtom) !== 'all' || get(searchAtom).trim() !== '',
+export const newTodoPriorityAtom = atomWithStorage<TodoPriority>(
+  'todos:priority',
+  'normal',
+  undefined,
+  { getOnInit: true },
 );
-export const clearViewAtom = atom(null, (_get, set) => {
-  set(filterAtom, 'all');
-  set(searchAtom, '');
-});
 ```
 
 - Read with `useAtomValue`, write with `useSetAtom`. `useAtom` only when a component needs both.
@@ -153,24 +153,123 @@ if (isPending) return <p>Loading todos...</p>;
 if (isError) return <p role="alert">Could not load todos.</p>;
 if (data.length === 0) return <p>Nothing to do yet.</p>;
 
-// Client-side narrowing happens here, in render, from atoms. Nothing is copied either way.
-const visible = data.filter((todo) => matchesFilter(todo, filter));
+// Narrowing happens here, in render, from the view the route passed down. Nothing is copied
+// either way: no atom holds a todo and no query key holds the filter.
+const visible = data.filter((todo) => matchesFilter(todo, view.filter));
 if (visible.length === 0) return <p>No todo matches this view.</p>;
 return <ul aria-label="Todos">...</ul>;
 ```
 
 An empty result is its own state with its own copy; an empty list is not a loading state. A
 list narrowed to nothing by a filter is a different state again, and deserves different copy
-and a way back out. For failures that should take out the whole route rather than one widget, use
-TanStack Router's `errorComponent`, `pendingComponent` and `notFoundComponent` route options.
+and a way back out.
+
+For failures that should take out the whole route rather than one widget, the router already has
+fallbacks: `src/lib/router.ts` sets `defaultPendingComponent`, `defaultErrorComponent` and
+`defaultNotFoundComponent` from `src/components/route-fallbacks.tsx`, so a new route gets all three
+without asking. Override one route's with the matching per-route option only when that route needs
+something the shared one cannot say.
+
+Choose the failure owner before choosing the loader API. If the feature has its own pending and
+error branches, keep `useQuery` and prime it with the loader's non-throwing `prefetchQuery`; an
+initial failure then reaches the feature instead of replacing the route. A throwing
+`ensureQueryData` or `fetchQuery` loader makes that feature error branch unreachable on the initial
+visit.
+
+When a failure should take out the whole route, await it in the loader and read the same query with
+`useSuspenseQuery`. The loader owns pending and failure, so the component has neither branch to
+write. That is the only place in this repo where those states are missing on purpose.
 
 ## Routing
 
-- Routes are files in `src/routes/`; `__root.tsx` is the shell. `src/routeTree.gen.ts` is
-  generated and committed, and regenerates on `dev` and `build`. Never edit it.
+- Routes are files in `src/routes/`; `__root.tsx` is the shell. A directory nests them:
+  `todos/route.tsx` is the layout that `todos/index.tsx` and `todos/$todoId.tsx` render inside.
+  `src/routeTree.gen.ts` is generated and committed, and regenerates on `dev` and `build`. Never
+  edit it.
 - Route files are exempt from `only-export-components`, because a route module must export
   `Route` alongside its component.
 - A route imports a feature through its barrel and composes it. Routes do not own how a
-  feature's pieces stack.
-- Per-route titles go through the `head` route option plus `<HeadContent />` in `__root.tsx`.
-  Site-level metadata stays static in `index.html`, because social scrapers do not run JS.
+  feature's pieces stack. A loader needs the feature's `queryOptions`, so name them in the
+  barrel - `@/features/<name>/<file>` is a lint error even from a route.
+- TanStack links match descendants by default. A parent/list backlink rendered on a detail route
+  needs exact active matching, or it receives `aria-current="page"` while it points somewhere else.
+  Keep the options object at module scope so it is not a fresh object prop:
+
+  ```tsx
+  const exactActiveOptions = { exact: true } as const;
+
+  <Link to="/todos" activeOptions={exactActiveOptions}>
+    All todos
+  </Link>;
+  ```
+
+- Per-route titles go through the `head` route option plus `<HeadContent />` in `__root.tsx`, and
+  `head` can read what the loader returned. Site-level metadata stays static in `index.html`,
+  because social scrapers do not run JS.
+
+### Loaders
+
+`__root.tsx` is a `createRootRouteWithContext<{ queryClient: QueryClient }>()`, so every loader
+gets the client:
+
+```tsx
+export const Route = createFileRoute('/todos/')({
+  loader: ({ context }) => context.queryClient.prefetchQuery(todosQuery),
+  component: TodosRoute,
+});
+```
+
+The component still reads the same query with `useQuery`. `prefetchQuery` warms the cache but does
+not reject, so the component's own error branch remains reachable; combined with
+`defaultPreload: 'intent'`, it starts on hover.
+
+Use the client method whose cache and failure semantics match the route:
+
+- `prefetchQuery` never rejects. Use it when the query component owns pending and failure.
+- `ensureQueryData` fetches only when data is absent. Cached data is returned immediately even
+  when stale; `revalidateIfStale` starts a background request but does not await it. Use it only
+  when any cached value is sufficient for the loader's decision.
+- `fetchQuery` reuses fresh data but awaits a stale refetch and rejects if validation fails. Use it
+  when the route decision depends on current server state, especially a detail route that maps a
+  missing record to `notFound()`.
+
+`router/create-route-property-order` enforces the option order:
+`params`/`validateSearch` -> `search` -> `loaderDeps` -> `context` -> `beforeLoad` -> `loader` ->
+`head`. Put `head` last, not first.
+
+A loader is also where a missing row becomes a 404. The transport throws a named error, the loader
+turns that one error into `notFound()` and lets everything else through to the error component:
+
+```tsx
+loader: async ({ context, params }) => {
+  try {
+    return await context.queryClient.fetchQuery(todoQuery(params.todoId));
+  } catch (error) {
+    if (error instanceof TodoNotFoundError) throw notFound();
+    throw error;
+  }
+},
+```
+
+This distinction matters after a mutation invalidates a cached detail. `ensureQueryData` can hand
+the loader the deleted row before its background refetch fails; `fetchQuery` waits, so the named
+missing-record error reaches `notFound()` and stale content never renders.
+
+### Search params
+
+State the URL owns is declared on the route and validated by the feature's own zod schema:
+
+```tsx
+validateSearch: todoViewSchema,
+search: { middlewares: [stripSearchParams(todoViewDefaults)] },
+```
+
+- Give every field a `.default()` **and** a `.catch()`. A hand-edited URL has to render the default
+  view, not an error page.
+- `stripSearchParams` keeps defaults out of the address, so `/todos` stays the address of the
+  unfiltered list.
+- The route reads it with `Route.useSearch()` and passes it down as a prop with a callback that
+  navigates. Feature components stay controlled and take no router dependency, which is what keeps
+  them renderable in a test without one.
+- Use `replace: true` for a value that changes per keystroke; a history entry per character makes
+  the back button useless.

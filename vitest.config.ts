@@ -19,6 +19,8 @@ export default defineConfig({
           // Node 25's stub `localStorage` shadows jsdom's, which vitest only installs when
           // the global is absent. Off, so jsdom's is the only one. See vitest-dev/vitest#8757.
           execArgv: ['--no-webstorage'],
+          // A route test renders __root.tsx, and the devtools panels have no business in jsdom.
+          env: { VITE_ENABLE_DEVTOOLS: 'false' },
           include: ['src/**/*.test.{ts,tsx}'],
         },
       },

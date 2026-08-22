@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   addTodoFormSchema,
   addTodoSchema,
+  isViewNarrowed,
   MAX_TITLE_LENGTH,
   matchesFilter,
   matchesSearch,
   setTodoDoneSchema,
   type Todo,
   todoSchema,
+  todoViewDefaults,
+  todoViewSchema,
 } from './todos.schema';
 
 const todo = (overrides: Partial<Todo> = {}): Todo => ({
@@ -105,5 +108,39 @@ describe('matchesSearch', () => {
 
   it('rejects a term the title does not contain', () => {
     expect(matchesSearch(todo({ title: 'Read AGENTS.md' }), 'groceries')).toBe(false);
+  });
+});
+
+describe('todoViewSchema', () => {
+  it('fills in the default view from an empty URL', () => {
+    expect(todoViewSchema.parse({})).toEqual(todoViewDefaults);
+  });
+
+  it('keeps a view the URL supplies in full', () => {
+    expect(todoViewSchema.parse({ filter: 'done', search: 'agents' })).toEqual({
+      filter: 'done',
+      search: 'agents',
+    });
+  });
+
+  // The reason both fields carry `.catch()`: a hand-edited or truncated URL has to render
+  // something rather than throw before the page exists.
+  it('falls back rather than throwing on a value the URL cannot supply', () => {
+    expect(todoViewSchema.parse({ filter: 'nope', search: 7 })).toEqual(todoViewDefaults);
+  });
+});
+
+describe('isViewNarrowed', () => {
+  it('is false for the default view', () => {
+    expect(isViewNarrowed(todoViewDefaults)).toBe(false);
+  });
+
+  it('is true once the filter moves off all', () => {
+    expect(isViewNarrowed({ filter: 'done', search: '' })).toBe(true);
+  });
+
+  it('ignores a search term that is only padding', () => {
+    expect(isViewNarrowed({ filter: 'all', search: '   ' })).toBe(false);
+    expect(isViewNarrowed({ filter: 'all', search: 'agents' })).toBe(true);
   });
 });
