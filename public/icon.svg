@@ -1,12 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <style>
-    /* The tab strip is not the page, so this follows the OS rather than the .dark class. */
-    .mark { fill: #0c0a09 }
+    /* The tab strip is not the page, so this follows the OS rather than the .dark class.
+       Both rules sit in a media query: svgo's `inlineStyles` folds an unconditional rule into
+       a fill attribute and drops the rest of the sheet, so a bare `.mark {}` here would ship a
+       build with no dark variant. With neither query matching, fill defaults to black, which
+       is the light value anyway. */
+    @media (prefers-color-scheme: light) { .mark { fill: #0c0a09 } }
     @media (prefers-color-scheme: dark) { .mark { fill: #fafaf9 } }
   </style>
   <path
     class="mark"
     fill-rule="evenodd"
-    d="M9 2h14a7 7 0 0 1 7 7v14a7 7 0 0 1-7 7H9a7 7 0 0 1-7-7V9a7 7 0 0 1 7-7Zm4 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z"
+    d="M9 2h14a7 7 0 0 1 7 7v14a7 7 0 0 1-7 7H9a7 7 0 0 1-7-7V9a7 7 0 0 1 7-7Z M10 7h12a2 2 0 0 1 0 4H10a2 2 0 0 1 0-4Z M10 14h12a2 2 0 0 1 0 4H10a2 2 0 0 1 0-4Z"
   />
 </svg>

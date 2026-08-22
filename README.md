@@ -1,4 +1,7 @@
-# groundwork
+<h1>
+  <img src="public/icon.svg" width="28" height="28" align="absmiddle" alt="groundwork mark">
+  groundwork
+</h1>
 
 A React 19 and TypeScript starter template built on Vite 8, TanStack Router, TanStack Query,
 TanStack Form, Jotai, Tailwind CSS v4, shadcn and zod. The architecture rules are lint rules, so
@@ -373,8 +376,9 @@ There is no server-side rendering here. See the [FAQ](#faq) if that is a require
    absent tag. Update the sitemap line in `public/robots.txt` while you are there.
 3. Keep the `theme-color` meta in `index.html` in step with the light `--background` in
    `src/styles/index.css`. It is hand-mirrored hex and drifts silently.
-4. Add a real `favicon.ico` and `apple-touch-icon.png` to `public/` and uncomment the two links in
-   `index.html`. Safari below 26 ignores the SVG icon.
+4. Replace `public/icon.svg` with your own mark, then add a real `favicon.ico` and
+   `apple-touch-icon.png` beside it and uncomment the two links in `index.html`. Safari below 26
+   ignores the SVG icon.
 5. Rewrite this README and update `LICENSE` with your own name.
 6. Read [`AGENTS.md`](AGENTS.md) before adding a feature, or point your agent at it. It links the
    topic guides in `.agents/skills/`, which is where the layer-by-layer detail lives.

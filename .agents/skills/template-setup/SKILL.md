@@ -14,7 +14,8 @@ description: One-time setup when starting a real project from this template, plu
    worse than an absent tag.
 3. Keep the `theme-color` meta in `index.html` in step with the light `--background` in
    `src/styles/index.css`. It is hand-mirrored hex and drifts silently.
-4. Rewrite `README.md`. Add real `favicon.ico` and `apple-touch-icon.png` to `public/`.
+4. Rewrite `README.md`. Replace `public/icon.svg` with your own mark, and add real
+   `favicon.ico` and `apple-touch-icon.png` beside it.
 5. Add each config value to `envSchema` in `src/lib/env.ts` **and** to `.env.example`.
 
 ## Git hooks
