@@ -84,6 +84,11 @@ command. No CI is configured, so this is the gate.
   the escape hatch wants a written reason.
 - Text assets come out brotli-precompressed, images are re-encoded through sharp and svgo, and the
   build prints a table of what it all weighs.
+- A new component starts with a grep for the one that already does the job. Two implementations
+  of one idea drift, and then neither is the answer. `src/features/todos/segmented-field.tsx` is
+  the worked example: the priority picker and the filter bar are the same control given two sets
+  of options. The linter cannot see that a new component duplicates an old one, only the copied
+  code underneath it, so the grep is step one.
 - `src/features/todos/` shows every layer doing its job: a schema, atoms, a transport, three
   mutations, a validated form, and a list with real loading, error, empty and filtered-to-nothing
   states. The list reads the server collection and the client-side filter in the same component
@@ -100,7 +105,7 @@ linter.
 - [`AGENTS.md`](AGENTS.md) holds the conventions and `CLAUDE.md` is a symlink to it. Claude Code,
   Codex, Cursor, opencode and anything else that follows the [AGENTS.md](https://agents.md)
   convention read the same document, so the guidance cannot fork per tool.
-- That document is 144 lines, because it is read on every turn of every session and a long one
+- That document is 155 lines, because it is read on every turn of every session and a long one
   both costs context and gets followed less. It keeps what is true of every task: the commands,
   the layout, the dependency arrows, the banned imports. The detail behind each of those (the
   layer-by-layer guide, forms, styling and accessibility, testing, environment variables, the
@@ -128,8 +133,10 @@ linter.
   [shadcn MCP server](https://ui.shadcn.com), which lets an agent search the component registry
   rather than guess at it. `.agents/skills/` holds the topic guides above alongside the
   [Jotai skill](https://github.com/jotaijs/jotai-skills), pinned by `skills-lock.json`, because
-  nothing published teaches Jotai. `.claude/skills/` symlinks to it per skill, so there is one
-  copy of each file and no chance of the two drifting.
+  nothing published teaches Jotai. Each first-party guide is a real directory under
+  `.agents/skills/` with `.claude/skills/<name>` symlinked to it, so there is one file to edit and
+  no chance of the two drifting. The vendored Jotai skill is the exception: it is a real copy in
+  both directories, because that is what `bunx skills add` writes.
 
 Nothing else is included. The bar for adding something is whether it knows this stack specifically:
 an MCP server for this component registry, a skill for this state library. Your editor config and
@@ -148,7 +155,7 @@ src/
   styles/index.css   Tailwind import, theme tokens, base layer
   test/              renderWithProviders and the Vitest setup file
 build/               Vite plugins: brotli, image optimisation, size tables
-lint/                local oxlint plugin for Jotai
+lint/                local oxlint plugins: jotai.ts, dry.ts, ui.ts
 .githooks/           pre-commit hook, written in TypeScript and run by Bun
 public/              copied to dist/ verbatim, for files needing an exact name at a known URL
 .agents/skills/      one guide per topic, loaded when the work calls for it
@@ -210,7 +217,7 @@ export const clearViewAtom = atom(null, (_get, set) => {
 });
 ```
 
-An atom is a plain value with no React in it, which is what lets a test drive it through a bare
+An atom is a plain value with no React in it, so a test can drive it through a bare
 `createStore()` with nothing rendered.
 
 ### Routing
@@ -254,7 +261,7 @@ for the same reason.
 ## Testing
 
 Vitest with jsdom and Testing Library, in three projects that share nothing but the runner: `app`
-for `src/`, `build` for the Vite plugins, `lint` for the local oxlint plugin. Tests are colocated
+for `src/`, `build` for the Vite plugins, `lint` for the local oxlint plugins. Tests are colocated
 next to the file under test.
 
 - Globals are off. Import `describe`, `it`, `expect` and `vi` from `vitest` in every file.
@@ -269,7 +276,7 @@ next to the file under test.
 
 - Mock the feature's `.api.ts` and leave the query definitions alone. That keeps the real
   `queryOptions` wiring under test instead of a stub of it, and it is the whole reason the
-  transport layer is kept free of React Query.
+  transport layer stays free of React Query.
 - Query by role and accessible name. `jsx-a11y` is on and the tests query the way a screen reader
   reads, so an accessibility regression fails the suite rather than shipping.
 - Coverage thresholds are 90 across statements, branches, functions and lines. That is a floor
@@ -298,8 +305,12 @@ Also on: no `any`, no non-null `!`, no `console`, no `@ts-ignore`. Exported func
 return type, components included. `max-lines` 400, `max-lines-per-function` 40, `complexity` 15,
 with test files exempt from the first two. `import/no-cycle` as the backstop for direction mistakes
 the path patterns cannot name. Three Jotai rules from `lint/jotai.ts`, because nothing published
-lints Jotai. Duplication is checked twice: `dry/no-identical-functions` from `lint/dry.ts` rejects
-a second function in one file whose body matches an earlier one, and `bun run dupes` runs
+lints Jotai. `ui/no-raw-element` from `lint/ui.ts` allows layout, text, lists, media and SVG, and
+rejects every other JSX element, so a raw `<button>` or `<input>` fails on the day it is written
+instead of the day somebody remembers to ban it. An allowlist also means `bunx shadcn add textarea`
+needs no edit here.
+Duplication is checked twice: `dry/no-identical-functions` from `lint/dry.ts` rejects a second
+function in one file whose body matches an earlier one, and `bun run dupes` runs
 [jscpd](https://jscpd.info) across `src`, `build` and `lint` to catch the copies that span files.
 
 `tsconfig.json` runs `strict` plus `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`,
