@@ -34,21 +34,21 @@ code reads them through `src/lib/env.ts`.
 
 ## Commands
 
-| Command                                              | What it does                                                |
-| ---------------------------------------------------- | ----------------------------------------------------------- |
-| `bun run dev`                                        | Vite dev server                                             |
-| `bun run build`                                      | `tsc -b` then `vite build`                                  |
-| `bun run check`                                      | `format:check` + `lint` + `dupes` + `typecheck` + all tests |
-| `bun run dupes`                                      | jscpd, copy-paste across `src`, `build` and `lint`          |
-| `bun run test`                                       | Vitest watch, `app` project only                            |
-| `bun run test:infra`                                 | Vitest watch, `build` and `lint` projects                   |
-| `bun run test:coverage`                              | All three projects, v8 report in `coverage/`                |
-| `bun run lint` / `lint:fix` / `format` / `typecheck` | The individual steps                                        |
+| Command                                              | What it does                                                    |
+| ---------------------------------------------------- | --------------------------------------------------------------- |
+| `bun run dev`                                        | Vite dev server                                                 |
+| `bun run build`                                      | `tsc -b` then `vite build`                                      |
+| `bun run check`                                      | Format, lint, dupes, types, coverage tests and production build |
+| `bun run dupes`                                      | jscpd, copy-paste across `src`, `build` and `lint`              |
+| `bun run test`                                       | Vitest watch, `app` project only                                |
+| `bun run test:infra`                                 | Vitest watch, `build` and `lint` projects                       |
+| `bun run test:coverage`                              | All three projects, v8 report in `coverage/`                    |
+| `bun run lint` / `lint:fix` / `format` / `typecheck` | The individual steps                                            |
 
 **Run `bun run check` before claiming anything is done.** `bun run lint` alone passes while
-types or tests are broken. `.github/workflows/ci.yml` runs this same command plus `build` on every
-push and pull request, so a local pass is the whole gate rather than a rehearsal for a different
-one.
+types, coverage, tests or the production build are broken. `.github/workflows/ci.yml` runs this
+same command on every push and pull request, so a local pass is the whole gate rather than a
+rehearsal for a different one.
 
 **Never work around a `check` failure.** Every rule here encodes a decision about how this
 codebase is built, so a failure names a real problem in the code and the fix is to remove the

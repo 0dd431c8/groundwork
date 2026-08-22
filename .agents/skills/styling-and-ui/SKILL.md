@@ -19,8 +19,9 @@ description: Write JSX, Tailwind classes, shadcn components, theme tokens, dark 
   palettes stay live.
 - Dark mode is a `.dark` class on `<html>`, set before first paint by an inline script in
   `index.html`. The contract is `localStorage['theme']` of `'light' | 'dark'`, absent meaning
-  light whatever the OS prefers. A toggle is an `atomWithStorage` atom on that key and needs no
-  HTML change.
+  light whatever the OS prefers. `src/features/theme/` owns the validated raw-string storage,
+  write-only toggle action, document class and `theme-color` synchronization. Use its public
+  `ThemeToggle`; do not create another theme store or DOM effect.
 - Notifications are `sonner`, mounted once as `<Toaster />` in `__root.tsx`. Never call `toast()`
   from a component: a failed mutation already reports itself through the `MutationCache` in
   `src/lib/runtime.tsx`, and a second toast for the same failure is the bug. The mount is

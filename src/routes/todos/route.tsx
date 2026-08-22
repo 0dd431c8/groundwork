@@ -10,7 +10,7 @@ export const Route = createFileRoute('/todos')({
 
 function TodosLayout(): JSX.Element {
   return (
-    <div className="flex min-h-dvh justify-center p-8">
+    <div className="flex min-h-dvh justify-center p-8 pt-20">
       <Outlet />
     </div>
   );

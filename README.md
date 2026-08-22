@@ -43,6 +43,7 @@ requests.
 - [Configuration](#configuration)
 - [Deployment](#deployment)
 - [Starting your own project](#starting-your-own-project)
+- [Contributing and security](#contributing-and-security)
 - [FAQ](#faq)
 - [License](#license)
 
@@ -70,8 +71,8 @@ Before pushing anything:
 bun run check
 ```
 
-This runs the format check, lint, duplication check, typecheck and all three test suites. CI uses
-the same command.
+This runs the format check, lint, duplication check, typecheck, coverage-enforced test suites and
+the production build. CI uses the same command.
 
 ## Why this starter
 
@@ -125,9 +126,9 @@ decisions while the agent works.
   An agent can apply that correction from its tool output during the same turn instead of waiting
   for a review comment three days later.
 
-- `bun run check` covers formatting, lint, copy-paste detection, types and every test in one
-  deterministic command that finishes in seconds. CI runs the same command, giving an agent loop a
-  single result to act on.
+- `bun run check` covers formatting, lint, copy-paste detection, types, coverage-enforced tests and
+  the production build in one deterministic command. CI runs the same command, giving an agent loop
+  a single result to act on.
 - A constant goes in `<feature>.schema.ts`, an atom in `.state.ts`, a fetch in `.api.ts`, a
   mutation in `.queries.ts`. The layer determines the file, so each task follows the same
   structure.
@@ -289,23 +290,31 @@ failure to `notifyError` in `src/lib/notify.ts`, which raises one toast. Read fa
 that path; they stay with the component that requested the data because background refetch toasts
 would not give the user an action to take.
 
+### Theme
+
+`src/features/theme/` owns the browser's persisted light/dark preference. The toggle writes the raw
+string `light` or `dark` to `localStorage['theme']`, synchronizes the `<html>.dark` class and browser
+`theme-color`, and follows changes from another tab. Invalid or unavailable storage falls back to
+light without preventing an in-session toggle. The inline script in `index.html` applies the same
+contract before first paint, so the stored palette never flashes through the default one.
+
 ## Scripts
 
-| Command                 | What it does                                                   |
-| ----------------------- | -------------------------------------------------------------- |
-| `bun run dev`           | Vite dev server                                                |
-| `bun run build`         | `tsc -b`, then `vite build` into `dist/`                       |
-| `bun run check`         | Format check, lint, duplication check, typecheck and all tests |
-| `bun run test`          | Vitest in watch mode, `app` project only                       |
-| `bun run test:infra`    | Vitest in watch mode, the `build` and `lint` projects          |
-| `bun run test:ui`       | Vitest dashboard                                               |
-| `bun run test:coverage` | All three projects, v8 report in `coverage/`                   |
-| `bun run lint`          | oxlint                                                         |
-| `bun run lint:fix`      | oxlint with `--fix`                                            |
-| `bun run dupes`         | jscpd, copy-paste across `src`, `build` and `lint`             |
-| `bun run format`        | oxfmt                                                          |
-| `bun run format:check`  | oxfmt in check mode                                            |
-| `bun run typecheck`     | `tsc -b`                                                       |
+| Command                 | What it does                                                    |
+| ----------------------- | --------------------------------------------------------------- |
+| `bun run dev`           | Vite dev server                                                 |
+| `bun run build`         | `tsc -b`, then `vite build` into `dist/`                        |
+| `bun run check`         | Format, lint, dupes, types, coverage tests and production build |
+| `bun run test`          | Vitest in watch mode, `app` project only                        |
+| `bun run test:infra`    | Vitest in watch mode, the `build` and `lint` projects           |
+| `bun run test:ui`       | Vitest dashboard                                                |
+| `bun run test:coverage` | All three projects, v8 report in `coverage/`                    |
+| `bun run lint`          | oxlint                                                          |
+| `bun run lint:fix`      | oxlint with `--fix`                                             |
+| `bun run dupes`         | jscpd, copy-paste across `src`, `build` and `lint`              |
+| `bun run format`        | oxfmt                                                           |
+| `bun run format:check`  | oxfmt in check mode                                             |
+| `bun run typecheck`     | `tsc -b`                                                        |
 
 `bun run lint` does not cover type errors, failed tests or duplicated code. Use `bun run check` for
 the complete gate.
@@ -331,8 +340,8 @@ runner. Tests are colocated with the files they cover.
   nested `path` and assert the destination and `aria-current` state.
 
 - To test a route, `renderRoute('/todos?filter=done')` runs its `validateSearch`, its loader, and the
-  address changes caused by clicks. `src/routes/todos/index.test.tsx` is the only route test and
-  uses no mocks. The remaining tests render named components for a faster, more explicit scope.
+  address changes caused by clicks. Route tests use the real tree and transport; the remaining tests
+  render named components for a faster, more explicit scope.
 
   Cache regressions stay inside one rendered route and one QueryClient. The detail regression loads
   a todo, navigates back to the list, deletes it through the UI, then revisits the detail address
@@ -346,8 +355,9 @@ runner. Tests are colocated with the files they cover.
   owns the error.
 - Query by role and accessible name. `jsx-a11y` is on and the tests query the way a screen reader
   reads, so an accessibility regression fails the suite.
-- Coverage thresholds are 90 across statements, branches, functions and lines. That is a floor
-  against a feature landing untested. Raise the threshold as coverage improves; do not lower it.
+- Coverage thresholds are enforced by `bun run check` at 90 across statements, branches, functions
+  and lines, including route modules. That is a floor against behavior landing untested. Raise the
+  threshold as coverage improves; do not lower it.
 
 ## Quality gates
 
@@ -392,11 +402,10 @@ unstaged changes to the commit. Bypass it with `git commit --no-verify`.
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push to `main` and every pull
 request. It installs Bun at the version in `.bun-version`, runs `bun install --frozen-lockfile`,
-then `bun run check` and `bun run build`.
+then runs `bun run check`.
 
-The workflow stays limited to those commands, making CI failures reproducible locally with the same
-one-line check. `build` remains a separate step because `check` typechecks but does not confirm that
-`vite build` succeeds.
+That command applies every quality gate and produces the production bundle, making CI failures
+reproducible locally with the same one-line check.
 
 [Renovate](https://docs.renovatebot.com) handles dependency updates according to
 [`renovate.json`](renovate.json). TanStack packages arrive in one PR because their types reference
@@ -450,8 +459,8 @@ There is no server-side rendering here. See the [FAQ](#faq) if that is a require
 2. In `index.html`, replace the `https://example.com/` placeholders on `og:url` and `og:image` with
    real absolute URLs. Scrapers discard relative OG URLs, and an empty `content=""` is worse than an
    absent tag. Update the sitemap line in `public/robots.txt` while you are there.
-3. Keep the `theme-color` meta in `index.html` in step with the light `--background` in
-   `src/styles/index.css`. It is hand-mirrored hex and drifts silently.
+3. Keep the light and dark values on the `theme-color` meta in `index.html` in step with the two
+   `--background` values in `src/styles/index.css`. They are hand-mirrored hex and drift silently.
 4. Replace `public/icon.svg` with your own mark, then add a real `favicon.ico` and
    `apple-touch-icon.png` beside it and uncomment the two links in `index.html`. Safari below 26
    ignores the SVG icon.
@@ -460,6 +469,12 @@ There is no server-side rendering here. See the [FAQ](#faq) if that is a require
 6. Rewrite this README and update `LICENSE` with your own name.
 7. Read [`AGENTS.md`](AGENTS.md) before adding a feature, or point your agent at it. It links the
    topic guides in `.agents/skills/`, which is where the layer-by-layer detail lives.
+
+## Contributing and security
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) describes the development workflow and pull request
+expectations. Report suspected vulnerabilities privately according to [`SECURITY.md`](SECURITY.md),
+never through a public issue.
 
 ## FAQ
 

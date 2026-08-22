@@ -14,4 +14,6 @@ afterEach(() => {
   cleanup();
   // A fresh store is not enough: atomWithStorage atoms re-read storage in onMount.
   localStorage.clear();
+  // Theme is synchronized onto the document root outside React's rendered subtree.
+  document.documentElement.classList.remove('dark');
 });

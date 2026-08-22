@@ -13,8 +13,8 @@ description: One-time setup when starting a real project from this template, plu
 2. In `index.html`, replace the `https://example.com/` placeholders on `og:url` and `og:image`
    with real absolute URLs. Scrapers discard relative OG URLs, and an empty `content=""` is
    worse than an absent tag.
-3. Keep the `theme-color` meta in `index.html` in step with the light `--background` in
-   `src/styles/index.css`. It is hand-mirrored hex and drifts silently.
+3. Keep the light and dark values on the `theme-color` meta in `index.html` in step with the two
+   `--background` values in `src/styles/index.css`. They are hand-mirrored hex and drift silently.
 4. Rewrite `README.md`. Replace `public/icon.svg` with your own mark, and add real
    `favicon.ico` and `apple-touch-icon.png` beside it.
 5. Add each config value to `envSchema` in `src/lib/env.ts` **and** to `.env.example`.
@@ -33,10 +33,10 @@ component, so the hook has to reach the same files the gate does.
 
 ## CI and the toolchain
 
-`.github/workflows/ci.yml` runs `bun run check` then `bun run build` on every push to `main` and
-every pull request. It deliberately runs the same command a person runs, so a green local run is
-the answer rather than a rehearsal, and a red run reproduces in one line. Adding a step that CI
-runs and a laptop cannot is how the two drift.
+`.github/workflows/ci.yml` runs `bun run check` on every push to `main` and every pull request. The
+command covers formatting, lint, duplication, types, coverage-enforced tests and the production
+build. CI deliberately runs the same command a person runs, so a green local run is the answer
+rather than a rehearsal, and a red run reproduces in one line.
 
 Bun's version lives in `.bun-version`, which `oven-sh/setup-bun` reads and `package.json`'s
 `engines` field repeats. There is no `.nvmrc`: Node is not the runtime here. There is no

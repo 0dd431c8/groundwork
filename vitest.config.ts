@@ -52,7 +52,6 @@ export default defineConfig({
         'src/components/ui/**',
         'src/main.tsx',
         'src/test/**',
-        'src/routes/**',
         'src/features/*/index.ts',
         'build/test/**',
         // lint/jotai.ts runs inside oxlint's process, not this one, so v8 instruments none of

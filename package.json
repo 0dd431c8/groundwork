@@ -14,9 +14,9 @@
     "test": "vitest --project app",
     "test:infra": "vitest --project build --project lint",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -b",
-    "check": "bun run format:check && bun run lint && bun run dupes && bun run typecheck && vitest run"
+    "check": "bun run format:check && bun run lint && bun run dupes && bun run typecheck && bun run test:coverage && vite build"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
