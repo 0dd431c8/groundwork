@@ -1,6 +1,6 @@
 ---
 name: styling-and-ui
-description: Write JSX, Tailwind classes, shadcn components, theme tokens, dark mode or accessible markup. Use when picking between a raw element and a component from src/components/ui/, adding a shadcn primitive, composing conditional classes, editing src/styles/index.css or its theme tokens, adding a component directory outside src, wiring the dark mode toggle, or labelling inputs, lists, errors and icon-only buttons.
+description: Build or change JSX styling, shadcn primitives, Tailwind v4 theme tokens, dark mode, notifications, or accessible markup in this repository.
 ---
 
 # Styling, UI and accessibility

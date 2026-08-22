@@ -1,9 +1,15 @@
 ---
 name: template-setup
-description: One-time setup when starting a real project from this template, plus the repo's own plumbing. Use when stripping the worked example, replacing the placeholder metadata in index.html, rewriting README.md, adding favicons, wiring the git pre-commit hook, changing the CI workflow or the pinned Bun version, configuring Renovate, or installing and updating the vendored agent skills in .agents/skills and .claude/skills.
+description: Initialize a real project from this starter or maintain starter-only plumbing such as metadata, assets, hooks, CI, Bun and Renovate pins, and agent-skill syncing.
 ---
 
 # Template setup
+
+Use the matching mode only:
+
+- **Initialize a project** to remove the worked example and replace starter identity and defaults.
+- **Maintain starter plumbing** to change hooks, CI, toolchain pins, Renovate, or agent-skill
+  installation. Do not perform project initialization as part of a plumbing-only task.
 
 ## Starting a new project
 

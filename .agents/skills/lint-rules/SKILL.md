@@ -1,50 +1,61 @@
 ---
 name: lint-rules
-description: Add or change an oxlint rule, work on the local plugins in lint/, or understand why a rule fired. Use when editing .oxlintrc.jsonc, writing or testing a plugin in lint/feature.ts, lint/jotai.ts, lint/dry.ts or lint/ui.ts, adding an entry to the ui/no-raw-element allowlist, changing feature dependency direction, or deciding whether a lint failure is the rule's fault or the code's.
+description: Add, change, test, or debug oxlint configuration or the local plugins under lint/, including feature-direction and raw-element rules.
 ---
 
 # Lint rules
 
-`AGENTS.md` lists what the linter rejects. This is how the rules are built, why each one is there,
-and what to do when you add another.
+Treat a lint report as a repository constraint with an owner and a reason. Fix the code unless a
+minimal reproduction shows that the rule rejects behavior the repository intends to allow.
 
-`lint/` holds the local oxlint plugins `feature.ts`, `jotai.ts`, `dry.ts` and `ui.ts`, loaded through
-`jsPlugins`, and the ESTree shapes they share in `types.ts`. Each has a colocated test that spawns
-the real oxlint binary, so `bun run test:infra` proves a rule fires rather than assuming it.
+## Diagnose a finding
 
-## Feature dependency direction
+1. Reproduce the exact finding with `bun run lint` and read its rule id and full message.
+2. Locate its owner:
+   - `.oxlintrc.jsonc` enables native, bridged, and local rules.
+   - `lint/feature.ts`, `lint/jotai.ts`, `lint/dry.ts`, and `lint/ui.ts` implement local rules.
+   - Colocated `lint/*.test.ts` files exercise the plugin through the real oxlint binary.
+   - `lint/config.test.ts` proves that the shipped project configuration enables critical rules.
+3. Compare the reported code with the rule's documented invariant and existing valid cases.
+4. Fix the source when the invariant applies. Change the rule only when the reproduction proves
+   that its implementation or configured boundary is wrong.
 
-`feature/dependency-direction` classifies production modules by filename and enforces the complete
-chain: schema <- state <- transport <- query <- rendering <- index. It also owns the role-specific
-framework bans and keeps mutations behind named query hooks. Test files are deliberately outside
-classification. Generic React and Jotai bans remain in `no-restricted-imports`.
+Do not silence a correct finding. If the rule cannot express a justified exception, use only the
+documented inline escape hatch and explain why that call is exceptional.
 
-## Why each rule is on
+## Add or change a rule
 
-- `react/react-compiler`, the React Compiler's own analysis: setState during render, reading a ref
-  during render, mutating props or state, defining a component inside another component.
-- `explicit-module-boundary-types`: exported functions declare their return type, components
-  included (`import type { JSX } from 'react'`, then `: JSX.Element`).
-- No `any`, no non-null `!`, no `console`, no `@ts-ignore`. `@ts-expect-error` needs a description
-  and fails once the underlying problem is fixed.
-- `max-lines` 400, `max-lines-per-function` 40, `complexity` 15; test files are exempt from the
-  first two. Extract a hook or a sub-component rather than raising a limit.
-- `react-perf` bans new objects, arrays and JSX as props. Hoist a constant out of the component.
-  New functions as props are allowed.
-- `import/no-cycle`, the backstop for direction mistakes the path patterns cannot name.
-- `ui/no-raw-element`, from `lint/ui.ts`: every JSX element not in its structural allowlist is
-  an error naming the component to use, or the `bunx shadcn@latest add` that would create it.
-  `react/forbid-elements` does the same job from a list of banned elements and is not used,
-  because that list is right only until a primitive lands that nobody remembered to add to it.
-  `src/components/ui` is exempt through `ignorePatterns`.
-- `dry/no-identical-functions`, from `lint/dry.ts`, because eslint-plugin-sonarjs cannot load
-  under TypeScript 7: it pulls in ts-api-utils, which reads a `ts.TypeFlags` that no longer
-  exists. Off in test files, where two cases that set up alike and assert differently are two
-  cases rather than one copy.
-- `no-deprecated` is type-aware, so a React, TanStack or Jotai deprecation fails the build on the
-  version bump rather than surfacing in a changelog nobody read.
+1. Add an invalid case that reports the intended rule id, line, and useful message through
+   `lint/test/harness.ts`.
+2. Add a nearby valid case that must remain silent. Include boundary cases that determine the
+   rule's scope, not snapshots of incidental wording.
+3. Implement the smallest AST or configuration change that satisfies those cases.
+4. For a new local rule, register it in `.oxlintrc.jsonc` and add a project-config case proving it
+   is actually enabled. A plugin test alone cannot catch a forgotten registration.
+5. Run `bun run test:infra`, then `bun run lint`, then `bun run check`.
 
-## Adding a rule
+Use temporary fixtures through the harness rather than adding a deliberately invalid production
+file. The harness writes an isolated file, runs the repository's oxlint binary, and cleans it up.
 
-When adding a rule, first write a file that violates it and confirm it fires. A rule that fires
-on nothing is not a guardrail.
+## Local rule map
+
+- `feature/dependency-direction` classifies production feature modules by filename, enforces the
+  schema-to-index dependency direction, and keeps mutation/cache ownership in query modules.
+- `jotai/*` enforces module-scope atoms, narrow hooks, and the `Atom` suffix.
+- `dry/no-identical-functions` catches identical function bodies within one production file;
+  `bun run dupes` handles repeated spans across files.
+- `ui/no-raw-element` allows structural markup and requires design-system components for controls.
+  Add an element to `ALLOWED` only when it is structure the design system will never own, with the
+  reason beside it.
+
+## Non-obvious configuration
+
+- Type-aware rules use the real TypeScript program; do not replace a type failure with `any`, a
+  cast, or a disabled rule.
+- `react/react-compiler` checks React semantics beyond the ordinary Rules of Hooks tier.
+- `react-perf` rejects fresh objects, arrays, and JSX passed as props. Hoist stable values; fresh
+  functions remain allowed.
+- Test files are exempt from line limits and identical-function checks because repeated setup can
+  make separate cases clearer.
+- `src/components/ui` is ignored because shadcn rewrites it; change the recipe or surrounding code
+  instead of hand-editing generated output to satisfy lint.

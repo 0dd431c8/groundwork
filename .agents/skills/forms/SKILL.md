@@ -1,6 +1,6 @@
 ---
 name: forms
-description: Build or change a form with TanStack Form and zod. Use when adding a form or a field, wiring validators, submitting through a mutation, resetting a form, deriving a form schema from an API schema, or rendering submit and error state without re-rendering on every keystroke.
+description: Build or change a TanStack Form form in this repository, including zod validation, mutation submission, reset behavior, and accessible pending or error state.
 ---
 
 # Forms

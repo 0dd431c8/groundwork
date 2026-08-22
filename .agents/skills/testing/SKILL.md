@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Write or fix tests in this repo. Use when adding a colocated .test.ts or .test.tsx file, seeding a Jotai store for a test, rendering with renderWithProviders or renderRoute, testing a route's search params or loader, mocking a feature's api module, querying by role and accessible name, waiting for async UI, or dealing with a coverage threshold failure.
+description: Write or fix Vitest and Testing Library tests in this repository, including provider or route rendering, API mocking, Jotai store setup, async UI, and coverage failures.
 ---
 
 # Testing
